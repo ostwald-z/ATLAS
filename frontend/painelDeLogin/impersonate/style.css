@@ -1,0 +1,22 @@
+body{
+    background-color: rgb(68, 68, 68);
+    text-align: center;
+}
+
+
+#titulo{
+    color: rgb(12, 148, 245);
+    font-size: 50px;
+}
+
+
+#idUser{
+    height: 30px;
+}
+#chaveimpersonate{
+    height: 30px;
+}
+
+#login{
+    height: 30px;
+}

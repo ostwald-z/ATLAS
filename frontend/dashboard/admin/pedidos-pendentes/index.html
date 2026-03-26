@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>ATLAS • Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="atlas-watermark">
+    <span class="atlas-title">ATLAS</span>
+    <span class="atlas-subtitle">Revisão de pedidos pendentes</span>
+</div>
+
+<div class="admin-panel">
+
+    <!-- COLUNA ESQUERDA -->
+    <div class="left-panel">
+        <button id="reload">⟳ Recarregar lista</button>
+
+        <div class="list">
+            <!-- itens entram via JS -->
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div class="right-panel">
+        <div class="editor">
+            <input id="f-id" placeholder="ID" disabled>
+            <input id="f-nome" placeholder="Nome">
+            <input id="f-email" placeholder="Email">
+            <input id="f-privilegio" placeholder="Privilégio">
+            <input id="f-data" placeholder="Data" disabled>
+            <textarea id="f-obs" placeholder="Observações"></textarea>
+        </div>
+
+        <div class="actions">
+            <button class="approve" id="aprovarbotao">APROVAR</button>
+            <button class="reject" id="recusarbotao">RECUSAR</button>
+            <button class="edit" id="editarbotao">EDITAR</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+* {
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(
+        circle at top,
+        #020617 0%,
+        #000000 55%,
+        #000000 100%
+    );
+    color: #94a3b8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* SCANLINES – quase imperceptíveis */
+.scanlines {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.01),
+        rgba(255,255,255,0.01) 1px,
+        transparent 1px,
+        transparent 6px
+    );
+    pointer-events: none;
+    opacity: 0.25;
+    z-index: 5;
+}
+
+/* FUNDO ATLAS */
+.atlas-background {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.atlas-bg-title {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 240px;
+    font-weight: 600;
+    letter-spacing: 48px;
+    color: rgba(56,189,248,0.06);
+    text-shadow:
+        0 0 120px rgba(56,189,248,0.12),
+        0 0 260px rgba(56,189,248,0.08);
+}
+
+.atlas-bg-subtitle {
+    margin-top: -60px;
+    font-size: 11px;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: rgba(148,163,184,0.18);
+}
+
+/* LOGIN CONTAINER */
+.login-container {
+    position: relative;
+    z-index: 10;
+    width: 360px;
+    padding: 32px;
+    background: rgba(2,6,23,0.82);
+    border: 1px solid rgba(56,189,248,0.18);
+    backdrop-filter: blur(18px);
+    box-shadow:
+        0 0 60px rgba(0,0,0,0.9),
+        inset 0 0 0 1px rgba(255,255,255,0.015);
+}
+
+/* HEADER */
+.login-header h1 {
+    margin: 0;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 28px;
+    letter-spacing: 12px;
+    font-weight: 500;
+    color: #38bdf8;
+    text-align: center;
+}
+
+.login-header p {
+    margin-top: 8px;
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-align: center;
+    color: #64748b;
+}
+
+/* INPUTS */
+.login-box {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.login-box input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(148,163,184,0.18);
+    padding: 14px 6px;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.login-box input::placeholder {
+    color: rgba(148,163,184,0.35);
+}
+
+.login-box input:focus {
+    outline: none;
+    border-bottom-color: #38bdf8;
+}
+
+/* MENSAGEM */
+#login-message {
+    height: 18px;
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: 3px;
+    opacity: 0;
+}
+
+#login-message.error {
+    color: #f87171;
+    opacity: 1;
+}
+
+#login-message.success {
+    color: #4ade80;
+    opacity: 1;
+}
+
+/* BOTÃO LOGIN */
+.login-button {
+    margin-top: 20px;
+    padding: 16px;
+    background: linear-gradient(
+        135deg,
+        rgba(56,189,248,0.9),
+        rgba(14,165,233,0.9)
+    );
+    border: none;
+    color: #020617;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+    letter-spacing: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.login-button:hover {
+    box-shadow: 0 0 28px rgba(56,189,248,0.45);
+    transform: translateY(-1px);
+}
+
+/* AÇÕES */
+.create-user {
+    margin-top: 18px;
+    background: none;
+    border: none;
+    color: rgba(148,163,184,0.45);
+    font-size: 10px;
+    letter-spacing: 3px;
+    cursor: pointer;
+}
+
+.create-user:hover {
+    color: #38bdf8;
+}
+
+/* SPECIAL LOGIN */
+.special-login {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: rgba(148,163,184,0.25);
+    font-size: 9px;
+    letter-spacing: 3px;
+    cursor: pointer;
+}
+
+.special-login:hover {
+    color: #38bdf8;
+}

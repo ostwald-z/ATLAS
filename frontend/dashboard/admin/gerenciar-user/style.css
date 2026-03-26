@@ -1,0 +1,269 @@
+/* ===== RESET ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color: #e5e7eb;
+}
+
+/* ===== TITLE ===== */
+.page-title {
+    text-align: center;
+    margin: 30px 0;
+    font-size: 34px;
+    font-weight: 600;
+}
+
+.page-title span {
+    color: #22d3ee;
+    text-shadow: 0 0 14px rgba(34, 211, 238, 0.8);
+}
+
+/* HEADER */
+.atlas-header {
+    padding: 20px 32px;
+    border-bottom: 1px solid #0f172a;
+}
+
+.atlas-header h1 {
+    color: #22d3ee;
+    letter-spacing: 2px;
+}
+
+.atlas-header span {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.atlas-header p {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+
+
+
+
+/* ===== LAYOUT ===== */
+.admin-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 32px;
+    padding: 0 40px 40px;
+}
+
+/* ===== SIDEBAR HUD ===== */
+.sidebar {
+    background: linear-gradient(
+        160deg,
+        rgba(15, 23, 42, 0.95),
+        rgba(2, 6, 23, 0.95)
+    );
+
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+
+    box-shadow: inset 0 0 30px rgba(34, 211, 238, 0.05);
+}
+
+.sidebar-button {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+
+    background: transparent;
+    color: #22d3ee;
+
+    border: 1px solid #22d3ee;
+    border-radius: 10px;
+
+    font-size: 15px;
+    cursor: pointer;
+
+    transition: background 0.25s, box-shadow 0.25s;
+}
+
+.sidebar-button:hover {
+    background: rgba(34, 211, 238, 0.1);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+}
+
+/* ===== LISTAGEM ===== */
+.user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.user-item {
+    padding: 12px;
+    border-radius: 10px;
+
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+
+    font-size: 13px;
+}
+
+.user-item p {
+    margin-bottom: 4px;
+    color: #94a3b8;
+}
+
+/* ===== MAIN PANEL ===== */
+.panel {
+    background: linear-gradient(
+        160deg,
+        rgba(15, 23, 42, 0.95),
+        rgba(2, 6, 23, 0.95)
+    );
+
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 18px;
+    padding: 32px;
+
+    box-shadow: inset 0 0 40px rgba(34, 211, 238, 0.05);
+}
+
+/* ===== FORM ===== */
+.user-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 12px;
+    border-radius: 10px;
+
+    background: rgba(2, 6, 23, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #e5e7eb;
+
+    outline: none;
+}
+
+.form-group textarea {
+    grid-column: span 2;
+    resize: none;
+}
+
+/* ===== ACTION BUTTON ===== */
+.action-button {
+    grid-column: span 2;
+    margin-top: 10px;
+
+    padding: 14px;
+    border-radius: 12px;
+
+    background: linear-gradient(90deg, #22d3ee, #38bdf8);
+    border: none;
+
+    font-size: 15px;
+    font-weight: 600;
+    color: #020617;
+
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.6);
+}
+
+.deletar-button{
+    grid-column: span 1;
+    margin-top: 10px;
+
+    margin-right: 50px;
+
+    padding: 14px;
+    border-radius: 12px;
+
+    background: linear-gradient(90deg, #ee2222, #ff3e3e);
+    border: none;
+
+    font-size: 15px;
+    font-weight: 600;
+    color: #020617;
+
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.deletar-button:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgb(234, 14, 14);
+}
+
+
+/* ===== FILTRO USUÁRIO ESPECÍFICO ===== */
+.user-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin-bottom: 22px;
+    padding-bottom: 20px;
+
+    border-bottom: 1px solid rgba(34, 211, 238, 0.15);
+}
+
+.user-filter input {
+    padding: 10px;
+    border-radius: 8px;
+
+    background: rgba(2, 6, 23, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #e5e7eb;
+
+    font-size: 13px;
+    outline: none;
+}
+
+.user-filter input::placeholder {
+    color: #64748b;
+}
+
+.filter-button {
+    margin-top: 6px;
+    padding: 10px;
+
+    background: transparent;
+    color: #22d3ee;
+
+    border: 1px solid #22d3ee;
+    border-radius: 8px;
+
+    font-size: 13px;
+    cursor: pointer;
+
+    transition: background 0.25s, box-shadow 0.25s;
+}
+
+.filter-button:hover {
+    background: rgba(34, 211, 238, 0.12);
+    box-shadow: 0 0 16px rgba(34, 211, 238, 0.35);
+}
+

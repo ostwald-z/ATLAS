@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ATLAS SYSTEM :: Create User</title>
+
+<style>
+/* ==============================
+   VARIÁVEIS DO SISTEMA ATLAS
+================================ */
+:root {
+    --atlas-neon: #22d3ee;
+    --atlas-text-secondary: #94a3b8;
+    --atlas-bg: #020617;
+    --atlas-panel: #020617cc;
+    --atlas-border: #0f172a;
+    --atlas-error: #f43f5e;
+    --atlas-success: #22c55e;
+}
+
+/* ==============================
+   RESET GLOBAL
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ==============================
+   BACKGROUND GLOBAL
+================================ */
+body {
+    background: radial-gradient(circle at top, #020617, #000);
+    min-height: 100vh;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* ==============================
+   MARCA D'ÁGUA ATLAS
+================================ */
+body::after {
+    content: "ATLAS";
+    position: fixed;
+    bottom: 40px;
+    right: 60px;
+    font-size: 120px;
+    font-weight: 800;
+    letter-spacing: 12px;
+    color: rgba(34, 211, 238, 0.04);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* ==============================
+   CONTAINER PRINCIPAL
+   🔻 LEVEMENTE REDUZIDO
+================================ */
+.atlas-container {
+    width: 820px; /* antes: 920px */
+    background: var(--atlas-panel);
+    border: 1px solid var(--atlas-border);
+    border-radius: 14px;
+    padding: 26px; /* antes: 32px */
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.08);
+    position: relative;
+    overflow: hidden;
+
+    /* Pulse Neon */
+    animation: atlasPulse 6s ease-in-out infinite;
+}
+
+/* ==============================
+   ANIMAÇÃO PULSE NEON
+   brilho lento e sutil
+================================ */
+
+/* @keyframes atlasPulse {
+    0%, 100% {
+        box-shadow: 0 0 40px rgba(34, 211, 238, 0.06);
+    }
+    50% {
+        box-shadow: 0 0 80px rgba(34, 211, 238, 0.18);
+    }
+} */
+
+
+/* ==============================
+   HEADER
+================================ */
+.atlas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.atlas-title h1 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--atlas-neon);
+}
+
+.atlas-title span {
+    font-size: 12px;
+    color: var(--atlas-text-secondary);
+    letter-spacing: 1px;
+}
+
+/* ==============================
+   CHAVES OPCIONAIS
+================================ */
+.atlas-optional-keys {
+    display: flex;
+    gap: 12px;
+}
+
+.atlas-optional-keys input {
+    width: 170px;
+}
+
+/* ==============================
+   FORMULÁRIO
+================================ */
+form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* ==============================
+   INPUTS
+================================ */
+label {
+    font-size: 12px;
+    color: var(--atlas-text-secondary);
+    margin-bottom: 6px;
+    display: block;
+    letter-spacing: 1px;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: #020617;
+    border: 1px solid var(--atlas-border);
+    border-radius: 8px;
+    color: white;
+    outline: none;
+    transition: all .25s ease;
+}
+
+input:focus, textarea:focus {
+    border-color: var(--atlas-neon);
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.25);
+}
+
+textarea {
+    resize: none;
+    height: 110px;
+    grid-column: 1 / 3;
+}
+
+.atlas-key {
+    grid-column: 1 / 3;
+}
+
+/* ==============================
+   CAMPO DE MENSAGENS (P)
+================================ */
+.atlas-message {
+    grid-column: 1 / 3;
+    border-radius: 10px;
+    padding: 14px 18px;
+    border: 1px solid var(--atlas-border);
+    background: linear-gradient(135deg, #020617, #020617dd);
+    color: var(--atlas-text-secondary);
+    font-size: 14px;
+    letter-spacing: .5px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ==============================
+   AÇÕES
+================================ */
+.atlas-actions {
+    grid-column: 1 / 3;
+    display: flex;
+    justify-content: flex-end;
+}
+
+button {
+    padding: 13px 30px;
+    background: transparent;
+    border: 1px solid var(--atlas-neon);
+    color: var(--atlas-neon);
+    border-radius: 10px;
+    letter-spacing: 2px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .3s ease;
+}
+
+button:hover {
+    background: var(--atlas-neon);
+    color: #020617;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+}
+</style>
+</head>
+
+<body>
+
+<div class="atlas-container">
+
+    <div class="atlas-header">
+        <div class="atlas-title">
+            <h1>ATLAS SYSTEM</h1>
+            <span>SECURE USER CREATION PANEL</span>
+        </div>
+
+        <div class="atlas-optional-keys">
+            <input type="text" placeholder="Atlas-NoPending" id="chaveNoPending">
+            <input type="text" placeholder="Atlas-Role-Key" id="chavePrivilegio">
+        </div>
+    </div>
+
+    <form>
+
+        <div>
+            <label>USUÁRIO</label>
+            <input type="text" id="user">
+        </div>
+
+        <div>
+            <label>EMAIL</label>
+            <input type="email" id="email">
+        </div>
+
+        <div>
+            <label>SENHA</label>
+            <input type="password" id="senha">
+        </div>
+
+        <div>
+            <label>CONFIRMAÇÃO</label>
+            <input type="password" id="senhaConfirmar">
+        </div>
+
+        <textarea placeholder="Observações do Usuário (nome completo, etc)" id="obs"></textarea>
+
+        <div class="atlas-key">
+            <label>ATLAS-KEY-CREATE</label>
+            <input type="text" id="chaveCriar">
+        </div>
+
+
+        <p class="atlas-message" id="erro">
+            Aguardando instruções do núcleo ATLAS...
+        </p>
+
+        <div class="atlas-actions">
+            <button type="button" id="enviarForm">CRIAR USUÁRIO</button>
+        </div>
+
+    </form>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

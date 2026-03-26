@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>ATLAS • Secure Access</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<!-- SCANLINE SUAVE -->
+<div class="scanlines"></div>
+
+<!-- FUNDO ATLAS -->
+<div class="atlas-background">
+    <div class="atlas-bg-title">ATLAS</div>
+    <div class="atlas-bg-subtitle">Restricted Knowledge System</div>
+</div>
+
+<!-- SPECIAL LOGIN -->
+<button class="special-login" id="specialLogin" type="button">Special Login</button>
+
+<!-- LOGIN -->
+<div class="login-container">
+
+    <div class="login-header">
+        <h1>ATLAS</h1>
+        <p>Secure Authentication</p>
+    </div>
+
+    <div class="login-box">
+        <input type="text" id="user" placeholder="Usuário">
+        <input type="password" id="senha" placeholder="Senha">
+
+        <div id="login-message"></div>
+
+        <p id="erro"></p>
+
+        <button class="login-button" id="login">LOGIN</button>
+    </div>
+
+    <div class="login-actions">
+        <button class="create-user" type="button" id="criaruser">Criar usuário</button>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
