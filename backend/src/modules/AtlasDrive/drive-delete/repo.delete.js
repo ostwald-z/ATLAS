@@ -12,14 +12,16 @@ async function deletar_drive_repo(caminho, id_user) {
 
 
 async function deletar_arquivos_por_pasta_repo(caminho_pasta, id_user) {
-    // O prefixo garante que pegamos a pasta exata e tudo que está dentro dela
-    // Exemplo: 'fotos/' vira 'fotos/%'
-    const caminho_com_wildcard = `${caminho_pasta}/%`;
+    // 1. Garante que o caminho da pasta NÃO termina com barra para o primeiro parâmetro
+    const pasta_limpa = caminho_pasta.replace(/\/+$/, '');
+    
+    // 2. O wildcard deve ser exatamente a pasta + / + qualquer coisa
+    const caminho_com_wildcard = `${pasta_limpa}/%`;
 
+    // A query está correta, mas o segredo é o rigor nos parâmetros
     const comandosql = `DELETE FROM atlas_drive WHERE dono_id=? AND (caminho = ? OR caminho LIKE ?)`;
 
-    // Deleta o registro da pasta em si (se existir) OU qualquer arquivo que comece com o caminho dela
-    const [result] = await sql.query(comandosql, [id_user, caminho_pasta, caminho_com_wildcard]);
+    const [result] = await sql.query(comandosql, [id_user, pasta_limpa, caminho_com_wildcard]);
     return result;
 }
 
