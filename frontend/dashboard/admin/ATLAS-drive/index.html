@@ -3,456 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>ATLAS Drive</title>
-  <style>
-    /* ==========================
-       ROOT VARIABLES (THEME)
-    ========================== */
-    :root {
-      --bg: #020617;
-      --panel: #0f172a;
-      --neon: #22d3ee;
-      --text-secondary: #94a3b8;
-      --text-primary: #e2e8f0;
-    }
 
-    /* ==========================
-       GLOBAL RESET
-    ========================== */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', sans-serif;
-    }
 
-    body {
-      background: var(--bg);
-      color: var(--text-primary);
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
+  <link rel="stylesheet" href="style.css">
 
-    /* ==========================
-      MODAL RENAME UX
-    ========================== */
-    .rename-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(2, 6, 23, 0.7);
-      backdrop-filter: blur(6px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      opacity: 0;
-      pointer-events: none;
-      transition: 0.25s ease;
-    }
-
-    .rename-modal.active {
-      opacity: 1;
-      pointer-events: all;
-    }
-
-    .rename-box {
-      background: var(--panel);
-      padding: 25px;
-      border-radius: 12px;
-      width: 300px;
-      border: 1px solid rgba(34, 211, 238, 0.2);
-
-      transform: scale(0.9);
-      transition: 0.25s ease;
-    }
-
-    .rename-modal.active .rename-box {
-      transform: scale(1);
-    }
-
-    .rename-box h3 {
-      margin-bottom: 15px;
-      color: var(--neon);
-    }
-
-    .rename-box input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: #020617;
-      color: var(--text-primary);
-      margin-bottom: 15px;
-      outline: none;
-    }
-
-    .rename-box input:focus {
-      border-color: var(--neon);
-    }
-
-    .rename-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .rename-actions button {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    #cancelRename {
-      background: transparent;
-      color: var(--text-secondary);
-    }
-
-    #cancelRename:hover {
-      color: white;
-    }
-
-    #confirmRename {
-      background: var(--neon);
-      color: black;
-      font-weight: bold;
-    }
-
-    #confirmRename:hover {
-      transform: scale(1.05);
-    }
-
-    /* ==========================
-       SIDEBAR (LEFT PANEL)
-    ========================== */
-    .sidebar {
-      width: 250px;
-      background: var(--panel);
-      padding: 20px;
-      border-right: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .logo {
-      font-size: 20px;
-      color: var(--neon);
-      margin-bottom: 30px;
-      letter-spacing: 2px;
-    }
-
-    .nav-item {
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .nav-item:hover {
-      background: rgba(34, 211, 238, 0.1);
-      color: var(--neon);
-    }
-
-
-
-/* ==========================
-       MENU DE CONTEXTO (BOTÃO DIREITO)
-    ========================== */
-    .context-menu {
-      position: absolute;
-      background: var(--panel);
-      border: 1px solid rgba(34, 211, 238, 0.2);
-      border-radius: 10px;
-      padding: 6px 0;
-      min-width: 170px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-
-      opacity: 0;
-      transform: scale(0.92) translateY(8px);
-      transform-origin: top left;
-
-      pointer-events: none;
-      transition: 
-        opacity 0.18s ease,
-        transform 0.18s ease;
-
-      z-index: 1000;
-    }
-
-    .context-menu.active {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-      pointer-events: auto;
-    }
-
-    .context-menu-item {
-      padding: 10px 16px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.15s ease;
-      position: relative;
-    }
-
-    .context-menu-item:hover {
-      background: rgba(34, 211, 238, 0.08);
-      color: var(--neon);
-      padding-left: 20px;
-    }
-
-    /* barrinha neon lateral estilo SaaS */
-    .context-menu-item::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      width: 0px;
-      background: var(--neon);
-      transition: 0.15s ease;
-    }
-
-    .context-menu-item:hover::before {
-      width: 3px;
-    }
-
-
-    /* ==========================
-      GLOBAL PROGRESS BAR
-    ========================== */
-    .progress-wrapper {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background: transparent;
-      z-index: 9999;
-
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    .progress-wrapper.active {
-      opacity: 1;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #22d3ee, #0ea5e9);
-      box-shadow: 0 0 10px #22d3ee;
-      transition: width 0.1s linear;
-    }
-
-
-    /* ==========================
-       MAIN CONTENT
-    ========================== */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* TOP BAR */
-    .topbar {
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    
-    #backButton {
-      font-size: 20px;
-      background: none;
-      border: none;
-      color: var(--neon);
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    #backButton:hover {
-      color: var(--neon);
-      transform: scale(1.2);
-    }
-
-
-    .path {
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    
-
-    .actions button {
-      background: var(--neon);
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      color: black;
-      font-weight: bold;
-    }
-
-    /* FILE GRID */
-    .file-container {
-      padding: 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 20px;
-      overflow-y: auto;
-    }
-
-    .file-card {
-      background: var(--panel);
-      padding: 15px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: 0.2s;
-      border: 1px solid transparent;
-    }
-
-    .file-card:hover {
-      border: 1px solid var(--neon);
-      transform: scale(1.03);
-    }
-
-
-    .file-icon {
-      font-size: 30px;
-      margin-bottom: 10px;
-    }
-
-    .file-name {
-      font-size: 14px;
-      word-break: break-word;
-    }
-
-    .file-meta {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 5px;
-    }
-
-    /* SCROLLBAR */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--neon);
-      border-radius: 10px;
-    }
-
-    .path-segment {
-      padding: 4px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      color: #94a3b8;
-      transition: 0.2s;
-      border: 1px solid transparent;
-    }
-
-    .path-segment:hover {
-      color: #22d3ee;
-      background: rgba(34, 211, 238, 0.08);
-    }
-
-    .path-segment.drop-hover {
-      border: 1px solid #22d3ee;
-      background: rgba(34, 211, 238, 0.15);
-    }
-
-
-    .file-container.drag-over {
-      border: 2px dashed #22d3ee;
-      background: rgba(34, 211, 238, 0.05);
-    }
-
-
-    
-    /* AREA QUE APARECE PROGRESSÃO DE TRANSFERENCIAS */
-    .transfer-item {
-      padding: 10px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      transition: background 0.2s;
-    }
-
-    .transfer-item:hover {
-      background: rgba(255,255,255,0.02);
-    }
-
-    .transfer-item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .transfer-item-name {
-      font-size: 12px;
-      color: #e2e8f0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
-    }
-
-    .transfer-item-status {
-      font-size: 11px;
-      color: #94a3b8;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .transfer-item-status.done {
-      color: #22d3ee;
-    }
-
-    .transfer-item-status.error {
-      color: #f87171;
-    }
-
-    .transfer-bar-bg {
-      width: 100%;
-      height: 3px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .transfer-bar-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #22d3ee, #0ea5e9);
-      box-shadow: 0 0 6px #22d3ee66;
-      border-radius: 10px;
-      transition: width 0.1s linear;
-    }
-
-    .transfer-bar-fill.done {
-      background: linear-gradient(90deg, #22d3ee, #06b6d4);
-      box-shadow: none;
-    }
-
-    .transfer-bar-fill.error {
-      background: #f87171;
-      box-shadow: none;
-    }
-
-
-
-
-
-  </style>
 </head>
 <body>
     <!-- ==========================
@@ -468,11 +22,23 @@
   <div class="sidebar">
     <div class="logo">ATLAS</div>
 
-    <!-- Ligado ao JS -->
-    <div class="nav-item" onclick="fetchFiles('/')">Inicio</div>
-    <div class="nav-item">Recentes</div>
-    <div class="nav-item">Favoritos</div>
-    <div class="nav-item">Lixeira</div>
+    <div class="sidebar-section">Principal</div>
+    <div class="nav-item active" onclick="fetchFiles('/')">
+      <span class="nav-icon">⊞</span> Início
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">◷</span> Recentes
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">☆</span> Favoritos
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">Sistema</div>
+    <div class="nav-item">
+      <span class="nav-icon">⊘</span> Lixeira
+    </div>
   </div>
 
   <!-- ==========================
@@ -482,27 +48,19 @@
 
     <!-- TOPBAR -->
     <div class="topbar">
-
-      <!-- BOTÃO VOLTAR -->
-      <button id="backButton" title="Voltar" style="
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        font-size: 20px;
-        margin-right: 10px;
-        cursor: pointer;
-        transition: 0.2s;
-      ">Voltar</button>
-
-      <!-- CAMINHO DINÂMICO -->
-      <!-- JS: aqui você atualiza o caminho atual -->
-      <div class="path" id="currentPath" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-
-
+      <button id="backButton" title="Voltar">← Voltar</button>
+      <div class="path" id="currentPath"></div>
       <div class="actions">
-        <!-- JS: botão para upload -->
-        <button onclick="uploadFile()">Upload</button>
+        <button onclick="uploadFile()">↑ Upload</button>
       </div>
+    </div>
+
+    <div class="list-header">
+      <div class="list-header-cell"></div>
+      <div class="list-header-cell">Nome</div>
+      <div class="list-header-cell">Tipo</div>
+      <div class="list-header-cell">Tamanho</div>
+      <div class="list-header-cell">Ext.</div>
     </div>
 
     <!-- FILES GRID -->

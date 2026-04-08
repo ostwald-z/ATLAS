@@ -59,6 +59,15 @@ function getFileIcon(nome, tipo) {
 
 
 
+function formatarTamanho(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+}
+
+
+
 
 // Ao carregar a página
 fetchFiles('/');
@@ -193,17 +202,12 @@ function finalizarTransferencia(id, sucesso = true) {
 
 
 function limparSelecaoVisual() {
-  document.querySelectorAll('.file-card').forEach(card => {
-    card.style.border = '1px solid transparent';
-  });
+  document.querySelectorAll('.file-card').forEach(card => card.classList.remove('selected'));
 }
-
-
 
 function marcarSelecionado(el) {
-  el.style.border = '1px solid #22d3ee';
+  el.classList.add('selected');
 }
-
 
 
 
@@ -315,8 +319,13 @@ async function fetchFiles(path = '/') {
 
     // Agora pegamos a lista de arquivos do campo "arquivos"
     const files = Array.isArray(data.arquivos) ? data.arquivos : [];
-    
-    renderFiles(files);
+
+    const ordenado = [
+      ...files.filter(f => f.tipo === 'pasta').sort((a, b) => (a.nome_original || a.nome).localeCompare(b.nome_original || b.nome)),
+      ...files.filter(f => f.tipo !== 'pasta').sort((a, b) => (a.nome_original || a.nome).localeCompare(b.nome_original || b.nome))
+    ];
+
+    renderFiles(ordenado);
     currentPath = path;
     currentPathEl.textContent = path;
     renderPath(path);
@@ -439,101 +448,130 @@ async function tentarPreviewIcone(file) {
 
 
 function renderFiles(files) {
-  arquivosAtuais = files; // 🔥 salva referência global
-
+  arquivosAtuais = files;
   fileContainer.innerHTML = '';
 
   if (!files.length) {
-    fileContainer.innerHTML = `<div style="color:#94a3b8;">Nenhum arquivo nesta pasta</div>`;
+    fileContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">◫</div>
+        <div>Nenhum arquivo nesta pasta</div>
+      </div>`;
     return;
   }
 
   files.forEach(file => {
     const div = document.createElement('div');
+    div.className = 'file-card';
+    div.dataset.type = file.tipo;
+    div.dataset.nome = file.nome;
 
-    //TORNA SELECIONAVEL COM CTRL + CLICK
+    const nomeExibido = file.nome_original || file.nome;
+    const ext = file.tipo === 'pasta'
+      ? '—'
+      : (nomeExibido.includes('.') ? nomeExibido.split('.').pop().toLowerCase() : '—');
+    const tipo = file.tipo === 'pasta' ? 'Pasta' : 'Arquivo';
+    const tamanho = file.tipo === 'pasta' ? '—' : formatarTamanho(file.tamanho);
+    const icone = getFileIcon(nomeExibido, file.tipo);
+
+    div.innerHTML = `
+      <div class="file-icon" id="icon-${file.nome}">${icone}</div>
+      <div class="file-name-col">
+        <span class="file-name">${nomeExibido}</span>
+      </div>
+      <div class="file-type-col">${tipo}</div>
+      <div class="file-size-col">${tamanho}</div>
+      <div class="file-ext-col">
+        ${ext !== '—' ? `<span class="file-ext-badge">${ext}</span>` : '<span style="color:var(--text-muted)">—</span>'}
+      </div>
+    `;
+
+    // seleção ctrl+click
     div.onclick = (e) => {
-      // CTRL = multi-select
       if (e.ctrlKey) {
         if (itensSelecionados.has(file.nome)) {
           itensSelecionados.delete(file.nome);
-          div.style.border = '1px solid transparent';
+          div.classList.remove('selected');
         } else {
           itensSelecionados.add(file.nome);
-          marcarSelecionado(div);
+          div.classList.add('selected');
         }
-
-        atualizarContadorSelecao()
+        atualizarContadorSelecao();
         return;
       }
-
-      // clique normal limpa seleção
       itensSelecionados.clear();
-
-      if (file.tipo === 'pasta') {
-        openItem(file.nome, file.tipo);
-      }
-
-
+      limparSelecaoVisual();
+      if (file.tipo === 'pasta') openItem(file.nome, file.tipo);
       atualizarContadorSelecao();
-
-
     };
 
-
-    // TORNA ARRASTÁVEL
     div.draggable = true;
 
-    div.ondragstart = () => {
-
+    div.ondragstart = (e) => {
       fileContainer.classList.remove('drag-over');
-
-      // se não tiver selecionado, seleciona só ele
       if (!itensSelecionados.has(file.nome)) {
         limparSelecaoVisual();
         itensSelecionados.clear();
         itensSelecionados.add(file.nome);
-        marcarSelecionado(div);
+        div.classList.add('selected');
       }
-
-      // monta lista completa
       itemSendoArrastado = Array.from(itensSelecionados).map(nome => {
         const caminho = currentPath === '/' ? nome : currentPath + '/' + nome;
-
         const tipoItem = files.find(f => f.nome === nome)?.tipo || 'arquivo';
-
         return { nome, tipo: tipoItem, caminho };
       });
-
-      // 🔥 CRIA GHOST
       const ghost = document.createElement('div');
-      ghost.style.position = 'absolute';
-      ghost.style.top = '-9999px';
-      ghost.style.left = '-9999px';
-      ghost.style.padding = '10px 14px';
-      ghost.style.background = '#0f172a';
-      ghost.style.border = '1px solid #22d3ee';
-      ghost.style.borderRadius = '8px';
-      ghost.style.color = '#22d3ee';
-      ghost.style.fontSize = '13px';
-      ghost.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
+      ghost.style.cssText = `
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        padding: 10px 14px;
+        background: #0d1424;
+        border: 1px solid rgba(34,211,238,0.4);
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: 12px;
+        font-family: Inter, sans-serif;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.7);
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 180px;
+        max-width: 240px;
+      `;
 
-      const count = itensSelecionados.size;
+      const selecionados = Array.from(itensSelecionados);
+      const visiveis = selecionados.slice(0, 4);
+      const resto = selecionados.length - visiveis.length;
 
-      ghost.innerHTML = count === 1
-        ? `📄 ${file.nome}`
-        : `📦 ${count} itens selecionados`;
+      visiveis.forEach(nome => {
+        const f = arquivosAtuais.find(x => x.nome === nome);
+        const icone = f ? getFileIcon(f.nome_original || f.nome, f.tipo) : '📄';
+        const nomeCurto = (f?.nome_original || nome).length > 28
+          ? (f?.nome_original || nome).slice(0, 25) + '...'
+          : (f?.nome_original || nome);
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        row.innerHTML = `
+          <span style="font-size:14px;flex-shrink:0;">${icone}</span>
+          <span style="color:#94a3b8;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nomeCurto}</span>
+        `;
+        ghost.appendChild(row);
+      });
+
+      if (resto > 0) {
+        const mais = document.createElement('div');
+        mais.style.cssText = 'color:rgba(34,211,238,0.7);font-size:10px;padding-top:3px;border-top:1px solid rgba(255,255,255,0.06);margin-top:2px;';
+        mais.textContent = `+ ${resto} outro${resto > 1 ? 's' : ''}`;
+        ghost.appendChild(mais);
+      }
 
       document.body.appendChild(ghost);
-
-      e.dataTransfer.setDragImage(ghost, 10, 10);
-
+      e.dataTransfer.setDragImage(ghost, 16, 16);
       setTimeout(() => ghost.remove(), 0);
-
-      div.style.opacity = '0.5';
+      div.style.opacity = '0.4';
     };
-
-
 
     div.ondragend = () => {
       itemSendoArrastado = null;
@@ -541,87 +579,66 @@ function renderFiles(files) {
       atualizarContadorSelecao();
     };
 
-
-
-
-    div.className = 'file-card';
-    div.dataset.type = file.tipo;
-    div.dataset.nome = file.nome; // gg caralho
-    
-    // LÓGICA DE CLIQUES
     if (file.tipo === 'pasta') {
+      let pastaHoverTimer;
 
-      // PERMITE DROP NA PASTA
       div.ondragover = (e) => {
         e.preventDefault();
-        e.stopPropagation(); // 🔥 impede subir pro container
-        marcarSelecionado(div);
+        e.stopPropagation();
+        div.classList.add('selected');
+
+        if (!pastaHoverTimer) {
+          pastaHoverTimer = setTimeout(() => {
+            openItem(file.nome, file.tipo); // 🔥 abre a pasta após 1.2s segurando
+          }, 1200);
+        }
       };
 
-      // QUANDO SAI DA PASTA
       div.ondragleave = () => {
-        div.style.border = '1px solid transparent';
+        div.classList.remove('selected');
+        clearTimeout(pastaHoverTimer);
+        pastaHoverTimer = null;
       };
 
       div.ondrop = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        fileContainer.classList.remove('drag-over'); // 🔥 limpa o fundo
-
-        div.style.border = '1px solid transparent';
-
+        e.preventDefault(); e.stopPropagation();
+        fileContainer.classList.remove('drag-over');
+        div.classList.remove('selected');
+        clearTimeout(pastaHoverTimer); // 🔥
         if (!itemSendoArrastado) return;
-
-        const destino = currentPath === '/'
-          ? file.nome
-          : currentPath + '/' + file.nome;
-
+        const destino = currentPath === '/' ? file.nome : currentPath + '/' + file.nome;
         itemSendoArrastado.forEach(item => {
-
-          // proteção básica
           if (item.caminho.startsWith(destino)) return;
-
-          const novoCaminho = normalizarCaminho(destino + '/' + item.nome);
-
-          renameFile(
-            item.caminho,
-            novoCaminho,
-            item.tipo,
-            "sim"
-          );
+          renameFile(item.caminho, normalizarCaminho(destino + '/' + item.nome), item.tipo, "sim");
         });
-
         itensSelecionados.clear();
       };
-
-      // Clique esquerdo abre pasta
-      div.onclick = () => openItem(file.nome, file.tipo);
-
-      // 🔥 NOVO: clique direito pra pasta
-      div.oncontextmenu = (e) => {
-        e.preventDefault();
-        abrirMenuContextoPasta(e, file.nome);
+      div.onclick = (e) => {
+        if (e.ctrlKey) {
+          if (itensSelecionados.has(file.nome)) { itensSelecionados.delete(file.nome); div.classList.remove('selected'); }
+          else { itensSelecionados.add(file.nome); div.classList.add('selected'); }
+          atualizarContadorSelecao(); return;
+        }
+        // clique simples só seleciona, não entra
+        itensSelecionados.clear();
+        limparSelecaoVisual();
+        div.classList.add('selected');
+        itensSelecionados.add(file.nome);
+        atualizarContadorSelecao();
       };
 
+      div.ondblclick = () => {
+        openItem(file.nome, file.tipo);
+      };
+      div.oncontextmenu = (e) => { e.preventDefault(); abrirMenuContextoPasta(e, file.nome); };
     } else {
-      // Arquivo continua igual
-      div.oncontextmenu = (e) => {
-        e.preventDefault();
-        abrirMenuContexto(e, file.nome, file.nome_original);
-      };
+      div.oncontextmenu = (e) => { e.preventDefault(); abrirMenuContexto(e, file.nome, file.nome_original); };
     }
-
-    div.innerHTML = `
-      <div class="file-icon" id="icon-${file.nome}">${getFileIcon(file.nome_original || file.nome, file.tipo)}</div>
-      <div class="file-name">${file.nome_original || file.nome}</div>
-      <div class="file-meta">${file.tipo === 'pasta' ? 'Pasta' : file.tamanho + ' bytes'}</div>
-    `;
 
     fileContainer.appendChild(div);
     tentarPreviewIcone(file);
   });
 }
-
 
 
 const selectionInfo = document.getElementById('selectionInfo');
@@ -655,27 +672,14 @@ function atualizarContadorSelecao() {
 
 
 
-
-
-
-
-
 function renderPath(path) {
   currentPathEl.innerHTML = '';
-
   const partes = path.split('/').filter(Boolean);
-
   let caminhoTemp = '';
-
-  // ROOT
-  criarSegmentoPath('🏠', '/');
-
-  partes.forEach(pasta => {
-    caminhoTemp = caminhoTemp
-      ? caminhoTemp + '/' + pasta
-      : pasta;
-
-    criarSegmentoPath(pasta, '/' + caminhoTemp);
+  criarSegmentoPath('ATLAS', '/', partes.length === 0);
+  partes.forEach((pasta, i) => {
+    caminhoTemp = caminhoTemp ? caminhoTemp + '/' + pasta : pasta;
+    criarSegmentoPath(pasta, '/' + caminhoTemp, i === partes.length - 1);
   });
 }
 
@@ -683,81 +687,48 @@ function renderPath(path) {
 
 
 
+function criarSegmentoPath(nome, caminho, isLast) {
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
 
-function criarSegmentoPath(nome, caminho) {
+  if (caminho !== '/') {
+    const sep = document.createElement('span');
+    sep.className = 'path-separator';
+    sep.textContent = '/';
+    wrapper.appendChild(sep);
+  }
+
   const el = document.createElement('div');
   el.className = 'path-segment';
+  if (isLast) el.style.color = 'var(--text-primary)';
   el.textContent = nome;
-
 
   let hoverTimer;
 
   el.ondragenter = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    el.classList.add('drop-hover'); // 🔥 usa tua classe já existente
-
-    hoverTimer = setTimeout(() => {
-      fetchFiles(caminho);
-    }, 1200);
-  };
-    
-
-  el.ondragleave = () => {
-    clearTimeout(hoverTimer);
-    el.classList.remove('drop-hover');
-  };
-
-  // CLICK NORMAL (navegar)
-  el.onclick = () => {
-    fetchFiles(caminho);
-  };
-
-  // DRAG OVER
-  el.ondragover = (e) => {
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     el.classList.add('drop-hover');
+    hoverTimer = setTimeout(() => fetchFiles(caminho), 1200);
   };
-
-  el.ondragleave = () => {
-    clearTimeout(hoverTimer);
-    el.classList.remove('drop-hover');
-  };
-
-  // DROP 🔥
+  el.ondragleave = () => { clearTimeout(hoverTimer); el.classList.remove('drop-hover'); };
+  el.onclick = () => fetchFiles(caminho);
+  el.ondragover = (e) => { e.preventDefault(); el.classList.add('drop-hover'); };
   el.ondrop = (e) => {
     e.preventDefault();
+    clearTimeout(hoverTimer);
     el.classList.remove('drop-hover');
-
     if (!itemSendoArrastado) return;
-
     itemSendoArrastado.forEach(item => {
-
-      // proteção
       if (item.caminho.startsWith(caminho)) return;
-
-      const destinoFinal = caminho === '/'
-        ? item.nome
-        : caminho + '/' + item.nome;
-
-      renameFile(
-        item.caminho,
-        normalizarCaminho(destinoFinal),
-        item.tipo,
-        "sim"
-      );
+      const destinoFinal = caminho === '/' ? item.nome : caminho + '/' + item.nome;
+      renameFile(item.caminho, normalizarCaminho(destinoFinal), item.tipo, "sim");
     });
-
     itensSelecionados.clear();
   };
 
-  currentPathEl.appendChild(el);
+  wrapper.appendChild(el);
+  currentPathEl.appendChild(wrapper);
 }
-
-
-
-
 
 
 
