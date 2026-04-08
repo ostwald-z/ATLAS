@@ -1,5 +1,6 @@
 const express = require("express")
 const userRota = express.Router()
+
 const controllerCriar = require("./criarUser/controller.criaruser")
 const controllerDeletar = require("./deletarUser/controller.deletarUser")
 const controllerLogin = require("./login/controller.login")
@@ -22,15 +23,22 @@ const {schemaCriarUser} = require("./criarUser/schemaCriarUser")
 const {schemaLoginUser} = require("./login/schemaLoginUser")
 const {schemaUpdateUser} = require("./updateUser/schemaUpdateUser")
 
+//importando api-check
+const api_check_controller = require("./api-check/controller_api_check")
+
+
+
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
+
+
+
+//checa a API ver se existe, se é valida e etc.
+userRota.get("/apicheck", authMiddle, roleMiddle(["user", "admin"]), api_check_controller.check_api_controller)
+
 
 
 //criar usuario
 userRota.post("/", validarBody(schemaCriarUser),controllerCriar.criarUser)
-
-
-//deletar usuario
-userRota.delete("/:id", authMiddle, roleMiddle("admin") ,controllerDeletar.deletarUser)
 
 
 //login do usuario
@@ -47,6 +55,10 @@ userRota.get("/:id", authMiddle, roleMiddle("admin"),controllerListarUser.listar
 
 //atualizar usuario
 userRota.patch("/:id", authMiddle, roleMiddle(["admin", "user"]),validarBody(schemaUpdateUser),controllerUpdateUser.updateUser)
+
+
+//deletar usuario
+userRota.delete("/:id", authMiddle, roleMiddle("admin") ,controllerDeletar.deletarUser)
 
 
 

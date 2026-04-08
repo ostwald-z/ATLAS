@@ -7,9 +7,10 @@ const erroMiddle = require("./middlewares/erro.middleware")
 const rotaGeral = require("./rotasGerais/index")
 const cors = require("cors")
 
+server.use(cookies())
 
 server.use(cors({
-    origin: "http://localhost:5500",
+    origin: "http://localhost:3000",
     credentials: true
 }))
 
@@ -19,7 +20,7 @@ server.listen(process.env.PORT, () =>{
 
 
 server.use(express.json())
-server.use(cookies())
+
 
 server.use("/api", rotaGeral)
 

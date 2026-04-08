@@ -13,6 +13,8 @@ function checkRoles(permitidasRoles = []){
 
             next();
 
+           
+
         }catch(erro){
             console.log("ERRO DESCONHECIDO: " + erro.message)
             res.status(500).json({

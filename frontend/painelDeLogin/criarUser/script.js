@@ -15,7 +15,7 @@ document.getElementById("enviarForm").addEventListener("click", async (evento) =
     const senhaConfirm = document.getElementById("senhaConfirmar").value;
 
     if(!user.trim() || !email.trim() || !obs.trim() || !chaveCriar.trim() || !senha.trim()){
-        perro.textContent = "Todos os campos são obrigatorios, não deixe nenhum em branco."
+        perro.textContent = "Todos os campos (exceto RoleKey/NoPending) são obrigatorios, não deixe nenhum em branco."
         perro.style.color = "red"
         return;
     }

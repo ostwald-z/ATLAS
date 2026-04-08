@@ -15,6 +15,7 @@ async function loginUser(req,res,next) {
             maxAge: 3600000
         })
 
+
         res.status(200).json({
             message: "Login com sucesso!",
             role: usuario.role
