@@ -22,6 +22,17 @@
   <div class="sidebar">
     <div class="logo">ATLAS</div>
 
+    <!-- VAULT MODE BADGE (aparece só no modo vault) -->
+    <div class="vault-mode-badge" id="vaultModeBadge">
+      <div class="vault-mode-badge-dot"></div>
+      VAULT ATIVO
+    </div>
+
+    <!-- BOTÃO SAIR DO VAULT (aparece só no modo vault) -->
+    <button class="vault-exit-btn" id="vaultExitBtn">
+      ⊗ &nbsp;FECHAR ATLAS VAULT
+    </button>
+
     <div class="sidebar-section">Principal</div>
     <div class="nav-item active" onclick="fetchFiles('/')">
       <span class="nav-icon">⊞</span> Início
@@ -48,6 +59,13 @@
 
     <!-- TOPBAR -->
     <div class="topbar">
+      
+      <!-- INDICADOR VAULT NA TOPBAR -->
+      <div class="vault-topbar-indicator" id="vaultTopbarIndicator">
+        <span style="width:5px;height:5px;border-radius:50%;background:#0af;box-shadow:0 0 6px #0af;animation:vaultPulse 2s infinite;display:inline-block;"></span>
+        VAULT
+      </div>
+
       <button id="backButton" title="Voltar">← Voltar</button>
       <div class="path" id="currentPath"></div>
       <div class="actions">
@@ -91,6 +109,7 @@
 
   <div id="contextMenu" class="context-menu">
     <div class="context-menu-item" id="visualizarItem">Visualizar Item</div>
+    <div class="context-menu-item" id="editarTxtItem" style="display:none">Editar conteúdo TXT</div>
     <div class="context-menu-item" id="downloadOption">Baixar arquivo</div>
     <div class="context-menu-item" id="MudarNomeOption">Renomear Item</div>
     <div class="context-menu-item" id="deletarArquivo">Deletear Item</div>
@@ -237,6 +256,184 @@
       padding: 8px 0;
     "></div>
   </div>
+
+
+
+
+  <!-- ══ VAULT: TELA 1 — VERIFICAÇÃO DE ACESSO ══ -->
+  <div id="vaultAccessOverlay" class="vault-overlay">
+    <div class="vault-card" id="vaultAccessCard">
+      <div class="vault-eyebrow">Atlas Secure System</div>
+      <div class="vault-title">CIPHER <span>ACCESS</span></div>
+      <div class="vault-subtitle">SISTEMA DE ACESSO RESTRITO — NÍVEL ALPHA</div>
+
+      <div class="vault-status">
+        <div class="vault-status-dot"></div>
+        VERIFICANDO CREDENCIAIS
+      </div>
+
+      <label class="vault-input-label">Código de acesso</label>
+      <div class="vault-input-wrap">
+        <input
+          type="password"
+          class="vault-input"
+          id="vaultAccessInput"
+          placeholder="••••••••"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <button class="vault-btn" id="vaultAccessBtn">
+        <span>VERIFICAR IDENTIDADE</span>
+      </button>
+
+      <div class="vault-error" id="vaultAccessError">
+        ACESSO NEGADO — CÓDIGO INVÁLIDO
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ VAULT: TELA 2 — AUTENTICAÇÃO VAULT ══ -->
+  <div id="vaultAuthOverlay" class="vault-overlay">
+    <div class="vault-card" id="vaultAuthCard">
+      <div class="vault-eyebrow">Atlas Vault Protocol</div>
+      <div class="vault-title">VAULT <span>CLEARANCE</span></div>
+      <div class="vault-subtitle">AUTENTICAÇÃO DE SEGUNDO FATOR REQUERIDA</div>
+
+      <div class="vault-status">
+        <div class="vault-status-dot"></div>
+        IDENTIDADE CONFIRMADA — AGUARDANDO CHAVE
+      </div>
+
+      <label class="vault-input-label">Chave mestra do vault</label>
+      <div class="vault-input-wrap">
+        <input
+          type="password"
+          class="vault-input"
+          id="vaultAuthInput"
+          placeholder="••••••••"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <button class="vault-btn" id="vaultAuthBtn">
+        <span>ABRIR O VAULT</span>
+      </button>
+
+      <div class="vault-error" id="vaultAuthError">
+        CHAVE INVÁLIDA — ACESSO BLOQUEADO
+      </div>
+    </div>
+  </div>
+
+
+  <!-- VAULT TRANSFER PANEL -->
+  <div id="vaultTransferPanel">
+    <div class="vault-transfer-header" id="vaultTransferHeader">
+      <div class="vault-transfer-title">Operações Vault</div>
+      <div class="vault-transfer-controls">
+        <span id="vaultTransferToggle">▾</span>
+        <span id="vaultTransferClose">✕</span>
+      </div>
+    </div>
+    <div id="vaultTransferList"></div>
+  </div>
+
+
+
+
+  <!-- MODAL EDITOR TXT -->
+  <div id="txtEditorModal" style="
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(2,6,23,0.92);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
+  ">
+    <div style="
+      width: 70%; height: 80%;
+      background: #0a1628;
+      border-radius: 14px;
+      border: 1px solid rgba(34,211,238,0.2);
+      box-shadow: 0 0 60px rgba(34,211,238,0.07);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    ">
+
+      <!-- HEADER -->
+      <div style="
+        padding: 16px 22px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        display: flex; align-items: center; justify-content: space-between;
+      ">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:16px;">📝</span>
+          <span id="txtEditorTitle" style="
+            color: var(--neon); font-weight: 700; font-size: 15px; letter-spacing: 0.5px;
+          ">arquivo.txt</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span id="txtEditorStatus" style="
+            font-size: 11px; color: #475569; letter-spacing: 1px;
+          ">SEM ALTERAÇÕES</span>
+          <button id="txtEditorSaveBtn" style="
+            background: rgba(34,211,238,0.1);
+            border: 1px solid rgba(34,211,238,0.35);
+            color: #22d3ee;
+            border-radius: 8px;
+            padding: 7px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+          ">💾 SALVAR</button>
+          <button id="txtEditorCloseBtn" style="
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #64748b;
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+          ">✕</button>
+        </div>
+      </div>
+
+      <!-- EDITOR -->
+      <textarea id="txtEditorArea" spellcheck="false" style="
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        resize: none;
+        padding: 22px 26px;
+        color: #e2e8f0;
+        font-family: 'Courier New', monospace;
+        font-size: 13.5px;
+        line-height: 1.75;
+        caret-color: #22d3ee;
+      "></textarea>
+
+      <!-- FOOTER -->
+      <div style="
+        padding: 10px 22px;
+        border-top: 1px solid rgba(255,255,255,0.04);
+        display: flex; justify-content: space-between; align-items: center;
+      ">
+        <span id="txtEditorLineCount" style="font-size:11px; color:#334155; letter-spacing:1px;">0 linhas · 0 caracteres</span>
+        <span style="font-size:11px; color:#1e3a4a; letter-spacing:1px;">ATLAS DRIVE · TEXT EDITOR</span>
+      </div>
+
+    </div>
+  </div>
+
 
 
 

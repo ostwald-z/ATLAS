@@ -202,12 +202,19 @@ function finalizarTransferencia(id, sucesso = true) {
 
 
 function limparSelecaoVisual() {
-  document.querySelectorAll('.file-card').forEach(card => card.classList.remove('selected'));
+  document.querySelectorAll('.file-card').forEach(card => {
+    card.classList.remove('selected');
+    card.style.border = '';   // 🔥 limpa qualquer inline que sobrou
+    card.style.outline = '';
+  });
 }
 
 function marcarSelecionado(el) {
   el.classList.add('selected');
+  el.style.border = '';   // 🔥 garante que inline não sobrescreve o CSS
+  el.style.outline = '';
 }
+
 
 
 
@@ -924,8 +931,12 @@ function abrirModalRenomear(nomeAtual, caminho_relativo, tipo = "arquivo") {
 function fecharModalRenomear() {
   renameModal.classList.remove('active');
   arquivoParaRenomear = null;
-}
 
+  // Reseta título e placeholder pro padrão
+  const tituloModal = renameModal.querySelector('h3');
+  tituloModal.textContent = 'Renomear Item';
+  renameInput.placeholder = 'Novo nome...';
+}
 
 // RENOMEIA TANTO ARQUIVO QUANTO PASTA - DEPENDENDO DE COMO O CAMINHO DIRETORIO É ENVIADO
 async function renameFile(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
@@ -1104,35 +1115,60 @@ function abrirMenuContextoPasta(e, nome) {
 function abrirMenuContextoVazio(e) {
   e.preventDefault();
 
-  // posição
-  contextMenu.style.top = `${e.pageY}px`;
+  contextMenu.style.top  = `${e.pageY}px`;
   contextMenu.style.left = `${e.pageX}px`;
 
   contextMenu.classList.remove('active');
   void contextMenu.offsetWidth;
   contextMenu.classList.add('active');
 
-  // 🔥 ESCONDE opções de arquivo
   visualizarItem.style.display = 'none';
   downloadOption.style.display = 'none';
   MudarNomeOption.style.display = 'none';
   deletarArquivo.style.display = 'none';
 
-  // 🔥 MOSTRA opções novas
   criarArquivo.style.display = 'block';
-  criarPasta.style.display = 'block';
+  criarPasta.style.display   = 'block';
 
-  // ==========================
-  // AQUI VAI AS FUNÇÕES
-  // ==========================
-  criarArquivo.onclick = () => {
-    console.log('Criar arquivo de texto');
+  // ── CRIAR PASTA ──────────────────────────────
+  criarPasta.onclick = () => {
     fecharMenuContexto();
+
+    if (vaultMode) {
+      // VAULT: abre modal de nome
+      arquivoParaRenomear = { nomeAtual: '', caminho_relativo: null, tipo: 'vault-nova-pasta' };
+      renameInput.value = 'Nova Pasta';
+      renameInput.placeholder = 'Nome da pasta...';
+      renameModal.querySelector('h3').textContent = 'Nova pasta';
+      renameModal.classList.add('active');
+      setTimeout(() => { renameInput.focus(); renameInput.select(); }, 100);
+      return;
+    }
+
+    // Drive normal
+    fetch('http://localhost:5555/api/atlas-drive/criar-nova-Pasta', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_da_pasta: currentPath })
+    })
+    .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+    .then(() => fetchFiles(currentPath))
+    .catch(() => alert('Erro ao criar pasta'));
   };
 
-  criarPasta.onclick = () => {
-    console.log('Criar nova pasta');
+  // ── CRIAR DOCUMENTO TXT ──────────────────────
+  criarArquivo.onclick = () => {
     fecharMenuContexto();
+
+    const tipoFluxo = vaultMode ? 'vault-novo-txt' : 'novo-txt';
+
+    arquivoParaRenomear = { nomeAtual: '', caminho_relativo: null, tipo: tipoFluxo };
+    renameInput.value = 'novo-arquivo.txt';
+    renameInput.placeholder = 'nome-do-arquivo.txt';
+    renameModal.querySelector('h3').textContent = 'Novo arquivo de texto';
+    renameModal.classList.add('active');
+    setTimeout(() => { renameInput.focus(); renameInput.select(); }, 100);
   };
 }
 
@@ -1293,11 +1329,14 @@ document.addEventListener('mousemove', (e) => {
 
     if (intersect) {
       itensSelecionados.add(nome);
-      card.style.border = '1px solid #22d3ee';
+      card.classList.add('selected');
+      card.style.border = '';
     } else {
       itensSelecionados.delete(nome);
-      card.style.border = '1px solid transparent';
+      card.classList.remove('selected');
+      card.style.border = '';
     }
+
   });
 
 
@@ -1324,17 +1363,1203 @@ document.addEventListener('mouseup', (e) => {
 
 document.addEventListener('click', (e) => {
   if (acabouDeSelecionar) {
-    acabouDeSelecionar = false; // 🔥 consome a flag, ignora esse click
+    acabouDeSelecionar = false;
     return;
   }
 
   const clicouEmArquivo = e.target.closest('.file-card');
-  const clicouMenu = e.target.closest('.context-menu');
+  const clicouMenu      = e.target.closest('.context-menu');
+  const clicouModal     = e.target.closest('.rename-modal');
+  const clicouTransfer  = e.target.closest('#transferPanel, #vaultTransferPanel');
 
-  if (!clicouEmArquivo && !clicouMenu) {
+  if (!clicouEmArquivo && !clicouMenu && !clicouModal && !clicouTransfer) {
     itensSelecionados.clear();
     limparSelecaoVisual();
     atualizarContadorSelecao();
   }
 });
+
+
+
+
+// ══════════════════════════════════════════════
+// ATLAS VAULT — SISTEMA SECRETO
+// ══════════════════════════════════════════════
+
+let vaultToken = null; // nunca vai pra localStorage
+let vaultMode = false;
+
+// elementos
+const vaultAccessOverlay = document.getElementById('vaultAccessOverlay');
+const vaultAccessCard    = document.getElementById('vaultAccessCard');
+const vaultAccessInput   = document.getElementById('vaultAccessInput');
+const vaultAccessBtn     = document.getElementById('vaultAccessBtn');
+const vaultAccessError   = document.getElementById('vaultAccessError');
+
+const vaultAuthOverlay   = document.getElementById('vaultAuthOverlay');
+const vaultAuthCard      = document.getElementById('vaultAuthCard');
+const vaultAuthInput     = document.getElementById('vaultAuthInput');
+const vaultAuthBtn       = document.getElementById('vaultAuthBtn');
+const vaultAuthError     = document.getElementById('vaultAuthError');
+
+const vaultModeBadge          = document.getElementById('vaultModeBadge');
+const vaultExitBtn            = document.getElementById('vaultExitBtn');
+const vaultTopbarIndicator    = document.getElementById('vaultTopbarIndicator');
+
+
+// ── INTERCEPTA O RENAME ────────────────────────
+// Chama isso ANTES de chamar renameFile de verdade.
+// Retorna true se interceptou (é vault), false se pode renomear normal.
+function interceptarVault(novoNome) {
+  if (!novoNome.startsWith('@@@')) return false;
+
+  const codigo = novoNome.slice(3).trim();
+  if (!codigo) return true; // digita @@@ sem nada, ignora silencioso
+
+  abrirVaultTela1(codigo);
+  return true;
+}
+
+
+// ── TELA 1: VERIFICAÇÃO DE ACESSO ─────────────
+function abrirVaultTela1(codigoJaPreenchido) {
+  // Se já tem código (veio do rename @@@ ), verifica direto no backend
+  // SEM abrir nenhuma UI — só abre a tela 2 se o backend confirmar
+  if (codigoJaPreenchido) {
+    verificarAcessoVault(codigoJaPreenchido);
+    return;
+  }
+
+  // Fluxo manual (sem código pré-preenchido): abre overlay normalmente
+  vaultAccessInput.value = '';
+  vaultAccessError.classList.remove('visible');
+  vaultAccessOverlay.classList.add('active');
+  setTimeout(() => vaultAccessInput.focus(), 300);
+}
+
+function fecharVaultTela1() {
+  vaultAccessOverlay.classList.remove('active');
+  vaultAccessInput.value = '';
+  vaultAccessError.classList.remove('visible');
+}
+
+
+
+
+
+
+async function verificarAcessoVault(codigo) {
+  // Só mexe no botão se o overlay estiver visível (fluxo manual)
+  const overlayAberto = vaultAccessOverlay.classList.contains('active');
+
+  if (overlayAberto) {
+    vaultAccessBtn.disabled = true;
+    vaultAccessBtn.querySelector('span').textContent = 'VERIFICANDO...';
+  }
+
+  try {
+    const res = await fetch('http://localhost:5555/api/atlas-drive/vault/verificar-acesso', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo })
+    });
+
+    if (res.ok) {
+      // Fecha overlay se estava aberto, aí abre tela 2
+      if (overlayAberto) {
+        vaultAccessOverlay.classList.remove('active');
+        setTimeout(() => {
+          vaultAccessInput.value = '';
+          vaultAccessError.classList.remove('visible');
+          abrirVaultTela2();
+        }, 400);
+      } else {
+        // Veio direto do rename — abre tela 2 sem animação de fechar
+        abrirVaultTela2();
+      }
+    }
+    // Se não ok: não faz NADA. Silêncio total. Sem overlay, sem erro visível.
+
+  } catch (err) {
+    // Erro de rede etc: também silêncio total no fluxo do rename
+    if (overlayAberto) fecharVaultTela1();
+    console.warn('Vault: falha na verificação de acesso.');
+  } finally {
+    if (overlayAberto) {
+      vaultAccessBtn.disabled = false;
+      vaultAccessBtn.querySelector('span').textContent = 'VERIFICAR IDENTIDADE';
+    }
+  }
+}
+
+
+
+vaultAccessBtn.onclick = () => {
+  const codigo = vaultAccessInput.value.trim();
+  if (!codigo) return;
+  verificarAcessoVault(codigo);
+};
+
+vaultAccessInput.onkeydown = (e) => {
+  if (e.key === 'Enter') vaultAccessBtn.click();
+  if (e.key === 'Escape') fecharVaultTela1();
+};
+
+
+
+
+
+
+// ── TELA 2: AUTENTICAÇÃO VAULT ─────────────────
+function abrirVaultTela2() {
+  vaultAuthInput.value = '';
+  vaultAuthError.classList.remove('visible');
+  vaultAuthOverlay.classList.add('active');
+  setTimeout(() => vaultAuthInput.focus(), 300);
+}
+
+function fecharVaultTela2() {
+  vaultAuthOverlay.classList.remove('active');
+  vaultAuthInput.value = '';
+  vaultAuthError.classList.remove('visible');
+}
+
+
+
+
+
+async function autenticarVault() {
+  const senha = vaultAuthInput.value.trim();
+  if (!senha) return;
+
+  try {
+    vaultAuthBtn.disabled = true;
+    vaultAuthBtn.querySelector('span').textContent = 'ABRINDO VAULT...';
+
+    const res = await fetch('http://localhost:5555/api/atlas-drive/vault/autenticar', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+    
+        senha_vault:senha 
+      
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      vaultToken = data.vaultToken; // 🔐 fica só em memória
+
+      fecharVaultTela2();
+      setTimeout(() => entrarModoVault(), 300);
+    } else {
+      vaultAuthError.classList.add('visible');
+      vaultAuthCard.style.animation = 'none';
+      void vaultAuthCard.offsetWidth;
+      vaultAuthCard.style.animation = 'vaultShake 0.4s ease';
+      vaultAuthInput.value = '';
+      vaultAuthInput.focus();
+    }
+  } catch (err) {
+    vaultAuthError.textContent = 'ERRO DE CONEXÃO — TENTE NOVAMENTE';
+    vaultAuthError.classList.add('visible');
+  } finally {
+    vaultAuthBtn.disabled = false;
+    vaultAuthBtn.querySelector('span').textContent = 'ABRIR O VAULT';
+  }
+}
+
+vaultAuthBtn.onclick = autenticarVault;
+
+vaultAuthInput.onkeydown = (e) => {
+  if (e.key === 'Enter') autenticarVault();
+  if (e.key === 'Escape') fecharVaultTela2();
+};
+
+
+// ── ENTRAR NO MODO VAULT ───────────────────────
+function entrarModoVault() {
+  vaultMode = true;
+
+  document.body.classList.add('vault-mode');
+  vaultModeBadge.classList.add('active');
+  vaultExitBtn.classList.add('active');
+  vaultTopbarIndicator.classList.add('active');
+
+  // lista os arquivos do vault
+  fetchVaultFiles('/');
+}
+
+// ── SAIR DO MODO VAULT ─────────────────────────
+function sairModoVault() {
+  vaultToken = null;
+  vaultMode = false;
+
+  document.body.classList.remove('vault-mode');
+  vaultModeBadge.classList.remove('active');
+  vaultExitBtn.classList.remove('active');
+  vaultTopbarIndicator.classList.remove('active');
+
+  // volta ao drive normal
+  fetchFiles('/');
+}
+
+vaultExitBtn.onclick = sairModoVault;
+
+
+// ── FETCH DO VAULT ─────────────────────────────
+async function fetchVaultFiles(path = '/') {
+  try {
+    const response = await fetch(
+      `http://localhost:5555/api/atlas-drive/vault/listar?path=${encodeURIComponent(path)}`,
+      {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${vaultToken}`
+        }
+      }
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      // token expirou ou inválido → sai do vault silenciosamente
+      sairModoVault();
+      return;
+    }
+
+    if (!response.ok) throw new Error('Erro ao listar vault');
+
+    const data = await response.json();
+
+    const raw = Array.isArray(data.arquivos) ? data.arquivos : 
+            Array.isArray(data) ? data : [];
+
+    // normaliza pro formato que o renderFiles já espera
+    const files = raw.map(f => ({
+      nome: f.nome,
+      nome_original: f.nome,         // vault não tem uuid, nome é direto
+      tipo: f.tipo,
+      tamanho: f.tamanho_bytes ?? 0, // renomeia pro campo que renderFiles usa
+      extensao: f.extensao           // bônus: já vem do backend
+    }));
+
+
+    const ordenado = [
+      ...files.filter(f => f.tipo === 'pasta').sort((a, b) =>
+        (a.nome_original || a.nome).localeCompare(b.nome_original || b.nome)),
+      ...files.filter(f => f.tipo !== 'pasta').sort((a, b) =>
+        (a.nome_original || a.nome).localeCompare(b.nome_original || b.nome))
+    ];
+
+    renderFiles(ordenado);
+    currentPath = path;
+    renderPath(path);
+
+  } catch (err) {
+    console.error('fetchVaultFiles:', err);
+  }
+}
+
+
+
+// ── OVERRIDE: fetchFiles respeita modo vault ───
+// Guarda o fetchFiles original e faz o override
+const fetchFilesOriginal = fetchFiles;
+
+// Sobrescreve pra quando estiver no modo vault,
+// redirecionar pra fetchVaultFiles automaticamente
+window.fetchFiles = async function(path = '/') {
+  if (vaultMode) {
+    return fetchVaultFiles(path);
+  }
+  return fetchFilesOriginal(path);
+};
+
+
+// ── INTERCEPTA O confirmRename ─────────────────
+// Precisa sobrescrever o onclick depois que o script carrega
+const confirmRenameOriginal = confirmRename.onclick;
+
+confirmRename.onclick = () => {
+  if (!arquivoParaRenomear) return;
+
+  let novoNome = renameInput.value.trim();
+  if (!novoNome) { alert('Nome inválido'); return; }
+
+  // 🔐 verifica se é código vault
+  if (interceptarVault(novoNome)) {
+    fecharModalRenomear();
+    return;
+  }
+
+  // ── VAULT: nova pasta ──────────────────────────
+  if (arquivoParaRenomear.tipo === 'vault-nova-pasta') {
+    fecharModalRenomear();
+
+    // Cria um arquivo fantasma .keep dentro da pasta pra forçar a criação
+    // (o upload vault aceita arquivo, então criamos a "pasta" via upload em subcaminho)
+    const blob     = new Blob([''], { type: 'text/plain' });
+    const file     = new File([blob], '.keep', { type: 'text/plain' });
+    const formData = new FormData();
+
+    const pastaDestino = currentPath === '/'
+      ? novoNome
+      : currentPath + '/' + novoNome;
+
+    formData.append('files', file);
+    formData.append('caminho_escolhido', pastaDestino);
+
+    const id = vaultCriarTransferencia(novoNome, 'upload');
+    const xhr = new XMLHttpRequest();
+
+    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
+
+    xhr.onload = () => {
+      if (xhr.status === 401 || xhr.status === 403) { vaultFinalizarTransferencia(id, false); sairModoVault(); return; }
+      if (xhr.status === 200) { vaultFinalizarTransferencia(id, true); fetchVaultFiles(currentPath); }
+      else vaultFinalizarTransferencia(id, false);
+    };
+
+    xhr.onerror = () => vaultFinalizarTransferencia(id, false);
+    xhr.send(formData);
+    return;
+  }
+
+
+  // ── VAULT: novo txt ────────────────────────────
+  if (arquivoParaRenomear.tipo === 'vault-novo-txt') {
+    fecharModalRenomear();
+
+    if (!novoNome.toLowerCase().endsWith('.txt')) novoNome += '.txt';
+
+    const blob     = new Blob([''], { type: 'text/plain' });
+    const file     = new File([blob], novoNome, { type: 'text/plain' });
+    const formData = new FormData();
+
+    formData.append('files', file);
+    formData.append('caminho_escolhido', currentPath);
+
+    const id = vaultCriarTransferencia(novoNome, 'upload');
+    const xhr = new XMLHttpRequest();
+
+    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
+
+    xhr.onload = () => {
+      if (xhr.status === 401 || xhr.status === 403) { vaultFinalizarTransferencia(id, false); sairModoVault(); return; }
+      if (xhr.status === 200) { vaultFinalizarTransferencia(id, true); fetchVaultFiles(currentPath); }
+      else vaultFinalizarTransferencia(id, false);
+    };
+
+    xhr.onerror = () => vaultFinalizarTransferencia(id, false);
+    xhr.send(formData);
+    return;
+  }
+
+  // ── Drive normal: novo txt ─────────────────────
+  if (arquivoParaRenomear.tipo === 'novo-txt') {
+    fecharModalRenomear();
+
+    if (!novoNome.toLowerCase().endsWith('.txt')) novoNome += '.txt';
+
+    const blob     = new Blob([''], { type: 'text/plain' });
+    const file     = new File([blob], novoNome, { type: 'text/plain' });
+    const formData = new FormData();
+
+    formData.append('files', file);
+    formData.append('caminho_escolhido', currentPath);
+
+    const id = criarTransferencia(novoNome, 'upload');
+    const xhr = new XMLHttpRequest();
+
+    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/upload', true);
+    xhr.withCredentials = true;
+
+    xhr.onload = () => {
+      if (xhr.status === 200) { finalizarTransferencia(id, true); fetchFiles(currentPath); }
+      else finalizarTransferencia(id, false);
+    };
+
+    xhr.onerror = () => finalizarTransferencia(id, false);
+    xhr.send(formData);
+    return;
+  }
+
+  // ── Renomear normal ────────────────────────────
+  renameFile(
+    arquivoParaRenomear.caminho_relativo,
+    novoNome,
+    arquivoParaRenomear.tipo,
+    "nao"
+  );
+
+  fecharModalRenomear();
+};
+
+
+// ── RENAME/MOVER NO VAULT ──────────────────────
+async function renameFileVault(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
+  try {
+    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/renomear', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${vaultToken}`
+      },
+
+      body: JSON.stringify({
+        caminho_arquivo: caminho_relativo,
+        novo_nome_arquivo: novo_nome,
+        pasta_ou_arquivo: pasta_ou_arquivo,
+        mover: mover
+      })
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      sairModoVault();
+      return;
+    }
+
+    if (!response.ok) throw new Error('Erro ao renomear no vault');
+
+    // recarrega vault no caminho atual
+    fetchVaultFiles(currentPath);
+
+  } catch (error) {
+    console.error('renameFileVault:', error);
+    alert('Erro ao renomear item no vault');
+  }
+}
+
+
+// guarda o original
+const renameFileOriginal = renameFile;
+
+// sobrescreve globalmente
+window.renameFile = function(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
+  if (vaultMode) {
+    return renameFileVault(caminho_relativo, novo_nome, pasta_ou_arquivo, mover);
+  }
+  return renameFileOriginal(caminho_relativo, novo_nome, pasta_ou_arquivo, mover);
+};
+
+
+
+
+// ── VAULT TRANSFER PANEL ───────────────────────
+const vaultTransferPanel  = document.getElementById('vaultTransferPanel');
+const vaultTransferList   = document.getElementById('vaultTransferList');
+const vaultTransferHeader = document.getElementById('vaultTransferHeader');
+const vaultTransferToggle = document.getElementById('vaultTransferToggle');
+const vaultTransferClose  = document.getElementById('vaultTransferClose');
+
+let vaultTransferMinimized = false;
+let vaultTransferId = 0;
+
+vaultTransferClose.onclick = (e) => {
+  e.stopPropagation();
+  vaultTransferPanel.style.display = 'none';
+  vaultTransferList.innerHTML = '';
+};
+
+vaultTransferHeader.onclick = () => {
+  vaultTransferMinimized = !vaultTransferMinimized;
+  vaultTransferList.style.display = vaultTransferMinimized ? 'none' : 'block';
+  vaultTransferToggle.textContent = vaultTransferMinimized ? '▸' : '▾';
+};
+
+function vaultCriarTransferencia(nome, tipo) {
+  const id = ++vaultTransferId;
+  const icone = tipo === 'download' ? '⬇' : '⬆';
+  const labelTipo = tipo === 'download' ? 'DOWNLOAD' : 'UPLOAD';
+
+  const item = document.createElement('div');
+  item.className = 'vault-transfer-item';
+  item.id = `vtransfer-${id}`;
+  item.innerHTML = `
+    <div class="vault-transfer-item-top">
+      <span class="vault-transfer-item-name">${icone} ${nome}</span>
+      <span class="vault-transfer-item-pct" id="vtransfer-pct-${id}">0%</span>
+    </div>
+    <div class="vault-transfer-bar-bg">
+      <div class="vault-transfer-bar-fill" id="vtransfer-bar-${id}"></div>
+    </div>
+    <div class="vault-transfer-item-meta" id="vtransfer-meta-${id}">
+      ${labelTipo} · INICIANDO
+    </div>
+  `;
+
+  vaultTransferList.appendChild(item);
+
+  vaultTransferPanel.style.display = 'flex';
+  if (vaultTransferMinimized) {
+    vaultTransferMinimized = false;
+    vaultTransferList.style.display = 'block';
+    vaultTransferToggle.textContent = '▾';
+  }
+
+  vaultTransferList.scrollTop = vaultTransferList.scrollHeight;
+  return id;
+}
+
+function vaultAtualizarTransferencia(id, percent, bytesCarregados, bytesTotal) {
+  const bar  = document.getElementById(`vtransfer-bar-${id}`);
+  const pct  = document.getElementById(`vtransfer-pct-${id}`);
+  const meta = document.getElementById(`vtransfer-meta-${id}`);
+  if (!bar || !pct) return;
+
+  bar.style.width = percent + '%';
+  pct.textContent = Math.round(percent) + '%';
+
+  if (meta && bytesCarregados && bytesTotal) {
+    meta.textContent = `${formatarTamanho(bytesCarregados)} / ${formatarTamanho(bytesTotal)}`;
+  }
+}
+
+function vaultFinalizarTransferencia(id, sucesso = true) {
+  const bar  = document.getElementById(`vtransfer-bar-${id}`);
+  const pct  = document.getElementById(`vtransfer-pct-${id}`);
+  const meta = document.getElementById(`vtransfer-meta-${id}`);
+  if (!bar || !pct) return;
+
+  bar.style.width = '100%';
+
+  if (sucesso) {
+    bar.classList.add('done');
+    pct.classList.add('done');
+    pct.textContent = '✓ OK';
+    if (meta) meta.textContent = 'TRANSFERÊNCIA CONCLUÍDA';
+  } else {
+    bar.classList.add('error');
+    pct.classList.add('error');
+    pct.textContent = '✕ ERRO';
+    if (meta) meta.textContent = 'FALHA NA OPERAÇÃO';
+  }
+
+  setTimeout(() => {
+    const el = document.getElementById(`vtransfer-${id}`);
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.4s';
+    setTimeout(() => {
+      el.remove();
+      if (vaultTransferList.children.length === 0) {
+        vaultTransferPanel.style.display = 'none';
+      }
+    }, 400);
+  }, 12000);
+}
+
+
+
+
+
+
+// ── DOWNLOAD VAULT ─────────────────────────────
+function downloadFileVault(caminho_relativo, nomeOriginal) {
+  const id = vaultCriarTransferencia(nomeOriginal || caminho_relativo, 'download');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/download', true);
+  xhr.responseType = 'blob';
+  xhr.withCredentials = true;
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
+
+  xhr.onprogress = (e) => {
+    if (e.lengthComputable) {
+      vaultAtualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status === 401 || xhr.status === 403) {
+      vaultFinalizarTransferencia(id, false);
+      sairModoVault();
+      return;
+    }
+    if (xhr.status === 200) {
+      vaultFinalizarTransferencia(id, true);
+      const a = document.createElement('a');
+      const url = window.URL.createObjectURL(xhr.response);
+      a.href = url;
+      a.download = nomeOriginal || caminho_relativo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } else {
+      vaultFinalizarTransferencia(id, false);
+    }
+  };
+
+  xhr.onerror = () => vaultFinalizarTransferencia(id, false);
+  xhr.send(JSON.stringify({ caminho_arquivo: caminho_relativo }));
+}
+
+
+// ── VISUALIZAR VAULT ───────────────────────────
+async function visualizarArquivoVault(caminho_relativo, nomeOriginal) {
+  try {
+    startProgress();
+
+    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/download', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${vaultToken}`
+      },
+      body: JSON.stringify({ caminho_arquivo: caminho_relativo })
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      sairModoVault();
+      return;
+    }
+
+    if (!response.ok) throw new Error('Erro ao buscar arquivo do vault');
+
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const nome = (nomeOriginal || '').toLowerCase();
+
+    previewHeader.textContent = `${getIcon(nome)} ${formatarNomeArquivo(nomeOriginal)}`;
+    previewContent.innerHTML  = '';
+
+    if (nome.match(/\.(jpg|jpeg|png|gif|webp|ico)$/)) {
+      previewContent.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;border-radius:4px;">`;
+    } else if (nome.match(/\.(txt|json|js|html|css|md)$/)) {
+      const text = await blob.text();
+      previewContent.innerHTML = `<pre style="white-space:pre-wrap;font-family:var(--vault-mono);font-size:13px;color:var(--vault-text);line-height:1.6;">${text}</pre>`;
+    } else {
+      previewContent.innerHTML = `
+        <div style="color:var(--vault-text-dim);font-family:var(--vault-mono);font-size:12px;letter-spacing:2px;">
+          FORMATO NÃO SUPORTADO PARA VISUALIZAÇÃO
+        </div>`;
+    }
+
+    previewModal.style.opacity = '1';
+    previewModal.style.pointerEvents = 'all';
+
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao visualizar arquivo do vault');
+  } finally {
+    finishProgress();
+  }
+}
+
+
+// ── OVERRIDES: download e visualizar respeitam vault
+const downloadFileOriginal = downloadFile;
+window.downloadFile = function(caminho_relativo, nomeOriginal) {
+  if (vaultMode) return downloadFileVault(caminho_relativo, nomeOriginal);
+  return downloadFileOriginal(caminho_relativo, nomeOriginal);
+};
+
+const visualizarArquivoOriginal = visualizarArquivo;
+window.visualizarArquivo = function(caminho_relativo, nomeOriginal) {
+  if (vaultMode) return visualizarArquivoVault(caminho_relativo, nomeOriginal);
+  return visualizarArquivoOriginal(caminho_relativo, nomeOriginal);
+};
+
+
+
+// ── UPLOAD VAULT ───────────────────────────────
+function uploadFileVault() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+
+  input.onchange = () => {
+    if (!input.files.length) return;
+
+    Array.from(input.files).forEach(file => {
+      const formData = new FormData();
+      formData.append('files', file);           // mesmo padrão multer .array("files")
+      formData.append('caminho_escolhido', currentPath);
+
+      const id = vaultCriarTransferencia(file.name, 'upload');
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+      xhr.withCredentials = true;
+      xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
+      // ⚠️ NÃO seta Content-Type — o browser seta automático com boundary pro multipart
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          vaultAtualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401 || xhr.status === 403) {
+          vaultFinalizarTransferencia(id, false);
+          sairModoVault();
+          return;
+        }
+        if (xhr.status === 200) {
+          vaultFinalizarTransferencia(id, true);
+          fetchVaultFiles(currentPath);
+        } else {
+          vaultFinalizarTransferencia(id, false);
+        }
+      };
+
+      xhr.onerror = () => vaultFinalizarTransferencia(id, false);
+
+      xhr.send(formData);
+    });
+  };
+
+  input.click();
+}
+
+
+// ── OVERRIDE: botão de upload respeita vault ───
+const uploadFileOriginal = uploadFile;
+window.uploadFile = function() {
+  if (vaultMode) return uploadFileVault();
+  return uploadFileOriginal();
+};
+
+
+
+
+
+// ── DELETE VAULT ───────────────────────────────
+async function deleteFileVault(caminho_relativo, pasta_ou_arquivo) {
+  try {
+    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/deletar', {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${vaultToken}`
+      },
+      body: JSON.stringify({
+        caminho_arquivo: caminho_relativo,
+        pasta_ou_arquivo: pasta_ou_arquivo
+      })
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      sairModoVault();
+      return;
+    }
+
+    if (!response.ok) throw new Error('Erro ao deletar no vault');
+
+    fetchVaultFiles(currentPath);
+
+  } catch (error) {
+    console.error('deleteFileVault:', error);
+    alert('Erro ao deletar item do vault');
+  }
+}
+
+
+// ── OVERRIDE: delete respeita vault ───────────
+const deleteFileOriginal = deleteFile;
+window.deleteFile = function(caminho_relativo, pasta_ou_arquivo) {
+  if (vaultMode) return deleteFileVault(caminho_relativo, pasta_ou_arquivo);
+  return deleteFileOriginal(caminho_relativo, pasta_ou_arquivo);
+};
+
+
+
+
+// ══════════════════════════════════════════════
+// EDITOR DE TXT
+// ══════════════════════════════════════════════
+
+const txtEditorModal     = document.getElementById('txtEditorModal');
+const txtEditorTitle     = document.getElementById('txtEditorTitle');
+const txtEditorArea      = document.getElementById('txtEditorArea');
+const txtEditorSaveBtn   = document.getElementById('txtEditorSaveBtn');
+const txtEditorCloseBtn  = document.getElementById('txtEditorCloseBtn');
+const txtEditorStatus    = document.getElementById('txtEditorStatus');
+const txtEditorLineCount = document.getElementById('txtEditorLineCount');
+const editarTxtItem      = document.getElementById('editarTxtItem');
+
+let txtEditorCaminho     = null;
+let txtEditorNome        = null;
+let txtEditorConteudoOriginal = '';
+
+// Abre o modal, carrega o conteúdo atual
+async function abrirEditorTxt(caminho_relativo, nomeOriginal) {
+  try {
+    startProgress();
+
+    const response = await fetch('http://localhost:5555/api/atlas-drive/download', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_arquivo: caminho_relativo })
+    });
+
+    if (!response.ok) throw new Error('Erro ao carregar arquivo');
+
+    const blob = await response.blob();
+    const texto = await blob.text();
+
+    txtEditorCaminho = caminho_relativo;
+    txtEditorNome    = nomeOriginal;
+    txtEditorConteudoOriginal = texto;
+
+    txtEditorTitle.textContent = nomeOriginal;
+    txtEditorArea.value = texto;
+
+    atualizarStatusEditor(false);
+    atualizarContadorEditor();
+
+    // Abre o modal
+    txtEditorModal.style.opacity = '1';
+    txtEditorModal.style.pointerEvents = 'all';
+    setTimeout(() => txtEditorArea.focus(), 100);
+
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao abrir editor');
+  } finally {
+    finishProgress();
+  }
+}
+
+function fecharEditorTxt() {
+  txtEditorModal.style.opacity = '0';
+  txtEditorModal.style.pointerEvents = 'none';
+  txtEditorArea.value = '';
+  txtEditorCaminho = null;
+  txtEditorNome    = null;
+}
+
+function atualizarStatusEditor(modificado) {
+  if (modificado) {
+    txtEditorStatus.textContent  = '● NÃO SALVO';
+    txtEditorStatus.style.color  = '#f59e0b';
+  } else {
+    txtEditorStatus.textContent  = 'SEM ALTERAÇÕES';
+    txtEditorStatus.style.color  = '#475569';
+  }
+}
+
+function atualizarContadorEditor() {
+  const texto   = txtEditorArea.value;
+  const linhas  = texto === '' ? 0 : texto.split('\n').length;
+  const chars   = texto.length;
+  txtEditorLineCount.textContent = `${linhas} linha${linhas !== 1 ? 's' : ''} · ${chars} caractere${chars !== 1 ? 's' : ''}`;
+}
+
+// Detecta mudanças no textarea
+txtEditorArea.addEventListener('input', () => {
+  const modificado = txtEditorArea.value !== txtEditorConteudoOriginal;
+  atualizarStatusEditor(modificado);
+  atualizarContadorEditor();
+});
+
+// Salva: deleta o original, faz upload com mesmo nome e novo conteúdo
+txtEditorSaveBtn.addEventListener('click', async () => {
+  if (!txtEditorCaminho || !txtEditorNome) return;
+
+  const novoConteudo = txtEditorArea.value;
+
+  txtEditorSaveBtn.textContent   = '⏳ SALVANDO...';
+  txtEditorSaveBtn.style.opacity = '0.6';
+  txtEditorSaveBtn.disabled      = true;
+
+  try {
+    // 1. Deleta o arquivo original
+    const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/delete', {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caminho_arquivo: txtEditorCaminho,
+        pasta_ou_arquivo: 'arquivo'
+      })
+    });
+
+    if (!deleteRes.ok) throw new Error('Erro ao deletar original');
+
+    // 2. Monta o novo arquivo em memória e faz upload
+    const blob     = new Blob([novoConteudo], { type: 'text/plain' });
+    const file     = new File([blob], txtEditorNome, { type: 'text/plain' });
+    const formData = new FormData();
+
+    // Pasta onde o arquivo estava (retira o nome do caminho)
+    const partesCaminho = txtEditorCaminho.split('/');
+    partesCaminho.pop();
+    const pastaDestino = partesCaminho.join('/') || '/';
+
+    formData.append('files', file);
+    formData.append('caminho_escolhido', pastaDestino);
+
+    const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+
+    if (!uploadRes.ok) throw new Error('Erro ao fazer upload do novo conteúdo');
+
+    // Sucesso
+    txtEditorConteudoOriginal = novoConteudo;
+    atualizarStatusEditor(false);
+    fetchFiles(currentPath);
+
+    // Feedback visual rápido
+    txtEditorSaveBtn.textContent   = '✓ SALVO';
+    txtEditorSaveBtn.style.color   = '#4ade80';
+    txtEditorSaveBtn.style.borderColor = 'rgba(74,222,128,0.4)';
+    setTimeout(() => {
+      txtEditorSaveBtn.textContent      = '💾 SALVAR';
+      txtEditorSaveBtn.style.color      = '#22d3ee';
+      txtEditorSaveBtn.style.borderColor = 'rgba(34,211,238,0.35)';
+    }, 2000);
+
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao salvar arquivo');
+  } finally {
+    txtEditorSaveBtn.style.opacity = '1';
+    txtEditorSaveBtn.disabled      = false;
+  }
+});
+
+// Fecha clicando fora ou no X
+txtEditorCloseBtn.addEventListener('click', fecharEditorTxt);
+txtEditorModal.addEventListener('click', (e) => {
+  if (e.target === txtEditorModal) fecharEditorTxt();
+});
+
+
+
+// ── INTEGRAÇÃO COM CONTEXT MENU ────────────────
+
+const abrirMenuContextoOriginal = abrirMenuContexto;
+window.abrirMenuContexto = function(e, nome, nomeOriginal) {
+  abrirMenuContextoOriginal(e, nome, nomeOriginal);
+
+  const nomeExibido = (nomeOriginal || nome).toLowerCase();
+  const ehTxt = nomeExibido.match(/\.txt$/);
+
+  editarTxtItem.style.display = ehTxt ? 'block' : 'none';
+
+  if (ehTxt) {
+    const caminho_relativo = currentPath === '/' ? nome : currentPath + '/' + nome;
+    editarTxtItem.onclick = () => {
+      if (vaultMode) {
+        abrirEditorTxtVault(caminho_relativo, nomeOriginal || nome);
+      } else {
+        abrirEditorTxt(caminho_relativo, nomeOriginal || nome);
+      }
+      fecharMenuContexto();
+    };
+  }
+};
+
+
+// Garante que fecharMenuContexto reseta o botão de editar
+const fecharMenuContextoOriginal = fecharMenuContexto;
+window.fecharMenuContexto = function() {
+  fecharMenuContextoOriginal();
+  editarTxtItem.style.display = 'none';
+};
+
+
+
+// ══════════════════════════════════════════════
+// EDITOR DE TXT — VAULT
+// ══════════════════════════════════════════════
+
+async function abrirEditorTxtVault(caminho_relativo, nomeOriginal) {
+  try {
+    startProgress();
+
+    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/download', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${vaultToken}`
+      },
+      body: JSON.stringify({ caminho_arquivo: caminho_relativo })
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      sairModoVault();
+      return;
+    }
+
+    if (!response.ok) throw new Error('Erro ao carregar arquivo do vault');
+
+    const blob  = await response.blob();
+    const texto = await blob.text();
+
+    txtEditorCaminho          = caminho_relativo;
+    txtEditorNome             = nomeOriginal;
+    txtEditorConteudoOriginal = texto;
+
+    txtEditorTitle.textContent = nomeOriginal;
+    txtEditorArea.value        = texto;
+
+    atualizarStatusEditor(false);
+    atualizarContadorEditor();
+
+    txtEditorModal.style.opacity      = '1';
+    txtEditorModal.style.pointerEvents = 'all';
+    setTimeout(() => txtEditorArea.focus(), 100);
+
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao abrir editor vault');
+  } finally {
+    finishProgress();
+  }
+}
+
+
+// ── OVERRIDE: salvar respeita vault ───────────
+const txtSalvarOriginal = txtEditorSaveBtn.onclick;
+
+txtEditorSaveBtn.addEventListener('click', async () => {}, true); // dummy — já tem listener
+
+// Substitui o listener de save por um que detecta vault
+txtEditorSaveBtn.replaceWith(txtEditorSaveBtn.cloneNode(true)); // limpa listeners antigos
+
+const txtEditorSaveBtnNovo = document.getElementById('txtEditorSaveBtn');
+
+txtEditorSaveBtnNovo.addEventListener('click', async () => {
+  if (!txtEditorCaminho || !txtEditorNome) return;
+
+  const novoConteudo = txtEditorArea.value;
+
+  txtEditorSaveBtnNovo.textContent   = '⏳ SALVANDO...';
+  txtEditorSaveBtnNovo.style.opacity = '0.6';
+  txtEditorSaveBtnNovo.disabled      = true;
+
+  try {
+    if (vaultMode) {
+      // ── VAULT ──────────────────────────────────
+
+      // 1. Deleta o original no vault
+      const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/vault/deletar', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vaultToken}`
+        },
+        body: JSON.stringify({
+          caminho_arquivo: txtEditorCaminho,
+          pasta_ou_arquivo: 'arquivo'
+        })
+      });
+
+      if (deleteRes.status === 401 || deleteRes.status === 403) { sairModoVault(); return; }
+      if (!deleteRes.ok) throw new Error('Erro ao deletar original no vault');
+
+      // 2. Upload do novo conteúdo no vault
+      const blob     = new Blob([novoConteudo], { type: 'text/plain' });
+      const file     = new File([blob], txtEditorNome, { type: 'text/plain' });
+      const formData = new FormData();
+
+      const partesCaminho = txtEditorCaminho.split('/');
+      partesCaminho.pop();
+      const pastaDestino = partesCaminho.join('/') || '/';
+
+      formData.append('files', file);
+      formData.append('caminho_escolhido', pastaDestino);
+
+      const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/vault/upload', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Authorization': `Bearer ${vaultToken}` },
+        body: formData
+      });
+
+      if (uploadRes.status === 401 || uploadRes.status === 403) { sairModoVault(); return; }
+      if (!uploadRes.ok) throw new Error('Erro ao fazer upload no vault');
+
+      txtEditorConteudoOriginal = novoConteudo;
+      atualizarStatusEditor(false);
+      fetchVaultFiles(currentPath);
+
+    } else {
+      // ── DRIVE NORMAL ───────────────────────────
+
+      const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caminho_arquivo: txtEditorCaminho,
+          pasta_ou_arquivo: 'arquivo'
+        })
+      });
+
+      if (!deleteRes.ok) throw new Error('Erro ao deletar original');
+
+      const blob     = new Blob([novoConteudo], { type: 'text/plain' });
+      const file     = new File([blob], txtEditorNome, { type: 'text/plain' });
+      const formData = new FormData();
+
+      const partesCaminho = txtEditorCaminho.split('/');
+      partesCaminho.pop();
+      const pastaDestino = partesCaminho.join('/') || '/';
+
+      formData.append('files', file);
+      formData.append('caminho_escolhido', pastaDestino);
+
+      const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (!uploadRes.ok) throw new Error('Erro ao fazer upload');
+
+      txtEditorConteudoOriginal = novoConteudo;
+      atualizarStatusEditor(false);
+      fetchFiles(currentPath);
+    }
+
+    // Feedback visual
+    txtEditorSaveBtnNovo.textContent        = '✓ SALVO';
+    txtEditorSaveBtnNovo.style.color        = '#4ade80';
+    txtEditorSaveBtnNovo.style.borderColor  = 'rgba(74,222,128,0.4)';
+    setTimeout(() => {
+      txtEditorSaveBtnNovo.textContent       = '💾 SALVAR';
+      txtEditorSaveBtnNovo.style.color       = '#22d3ee';
+      txtEditorSaveBtnNovo.style.borderColor = 'rgba(34,211,238,0.35)';
+    }, 2000);
+
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao salvar arquivo');
+  } finally {
+    txtEditorSaveBtnNovo.style.opacity = '1';
+    txtEditorSaveBtnNovo.disabled      = false;
+  }
+});
+
+// Ctrl+S continua funcionando com o novo botão
+txtEditorArea.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    txtEditorSaveBtnNovo.click();
+  }
+});
+
+
+
 

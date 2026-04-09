@@ -28,15 +28,17 @@ server.use("/api", rotaGeral)
 
 // --- FUNÇÃO PRA ENCRIPTAR ALGO RAPIDÃO, pra colocar no .env e poder usar o bcrypt
 
+
 /*
 async function encriptarAlog() {
     
     const bcrypt = require("bcrypt")
 
-    const algo = await bcrypt.hash("pensarAinda", 10)
+    const algo = await bcrypt.hash("Uw!BV76aW", 10)
     console.log(algo)
 }
 encriptarAlog()
+
 */
 
 

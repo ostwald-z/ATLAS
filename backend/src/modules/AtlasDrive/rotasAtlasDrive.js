@@ -8,8 +8,15 @@ const upload_middle = require('../../middlewares/multter_arquivo')
 //middleware de autenticação (joga token e dados pro req.user)
 const {authMiddle_bearer} = require("../../middlewares/authMiddleBEARER")
 
+
 //middleware de autenticação COOKIE
 const {authMiddle} = require("../../middlewares/authMiddleware")
+
+
+
+//MIDDLEWARE DE VALIDAÇÃO DE TOKEN VAULT ATLAS DRIVE
+const {authMiddle_bearer_vault} = require("../../middlewares/authMiddleVaultDrive")
+
 
 //middleware de ROLE para permissão
 const middleRole = require("../../middlewares/roleMiddleware")
@@ -32,7 +39,78 @@ const controller_deletar_arquivo = require("./drive-delete/controller.delete")
 //controller renomear arquivo drive
 const controller_renomear_arquivo = require("./drive-renomear-arquivo/controller-renomear")
 
+//controller criar pasta padrão context menu
+const controller_criar_pasta_context = require("./drive-criarPastaContext/controller-criarPasta")
+
+
+//VAULT DRIVE ==================================================
+
+//controller vault acesso inicial verificara
+const controller_vault = require("./AtlasVault/AtlasVault-VerificarAcess/controller-verificar-acesso")
+
+
+//controller para autenticar o painel e entregar SessionToken para vault
+const controller_vault_autenticar = require("./AtlasVault/AtlasVault-VerificarSenha/controller.verificarSenha")
+
+
+//controller para LISTAR O VAULT DRIVE
+const controller_lista_vault = require("./AtlasVault/AtlasVault-listarPasta/controller_listar_pastas")
+
+
+//controller renomear para o VAULT DRIVE (move ou renomeia tudo)
+const controller_renomear_vault = require("./AtlasVault/AtlasVault-renomearGeral/controller-renomear")
+
+
+//controller de DOWLOAD DO VAULT DRIVE
+const controller_download_vault = require("./AtlasVault/AtlasVault-download/controller_download")
+
+
+//controller de UPLOAD DO VAULT DRIVE
+const controller_upload_vault = require("./AtlasVault/AtlasVault-upload/controller.upload")
+
+
+//controller de DELETE do vault drive
+const controller_delete_vault = require("./AtlasVault/AtlasVault-delete/controller.delete")
+
+
 //----------------------------------------------- ROTAS --------------------------------------------------
+
+
+//TUDO REFERENTE AO ATLAS_VAULT !!!!!!!!!
+
+
+//VERIFICA ACESSO INICIAL RENOMEAR
+rotaDrive.post("/vault/verificar-acesso", authMiddle, middleRole(["user", "admin"]), controller_vault.controller_verificar_acesso_inicial)
+
+
+// autentica de fato o usuario após acertar a senha no painel , entrega SESSION TOKEN (sessionStorage)
+rotaDrive.post("/vault/autenticar", authMiddle, middleRole(["user", "admin"]), controller_vault_autenticar.controller_verificar_senha_vault)
+
+
+// ROTA QUE LISTA A PORRA DO ATLAS VAULT  (MIDDLEWARE PERSONALIZADO para ler TOKEN DADO PARA ALTERAÇÕES E LEITURA DO VAULT)
+rotaDrive.get("/vault/listar", authMiddle_bearer_vault, controller_lista_vault.listar_pastas_vault)
+
+
+// ROTA QUE RENOMEIA/MOVE PASTAS E ARQUIVOS DENTRO DO VAULT
+rotaDrive.patch("/vault/renomear", authMiddle_bearer_vault, controller_renomear_vault.renomear_arquivo_controller_vault)
+
+
+// ROTA DE DOWNLOAD DE ARQUIVOS para o VAULT DRIVE
+rotaDrive.post("/vault/download", authMiddle_bearer_vault, controller_download_vault.controller_download_vault)
+
+
+// ROTA DE UPLOAD DE ARQUIVOS PARA VAULT DRIVE
+rotaDrive.post("/vault/upload", authMiddle_bearer_vault, upload_middle.array("files"), controller_upload_vault.drive_upload_vault)
+
+
+//ROTA DE DELETE PARA ARQUIVOS E PASTAS VAULT
+rotaDrive.delete("/vault/deletar", authMiddle_bearer_vault, controller_delete_vault.controller_deletar_arquivo_vault)
+
+
+
+
+//=================================== ROTAS PARA O ATLAS-DRIVE PADRÃO NORMAL NÃO SECRETO  ========================================
+
 
 
 
@@ -55,6 +133,15 @@ rotaDrive.patch("/renomear", authMiddle, middleRole(["user", "admin"]), controll
 
 // Rota para LISTAR PASTA INICIAL OU listar SUBPASTAS, navegar dentro das pastas do drive do usuario
 rotaDrive.get("/cloud", authMiddle, middleRole(["user", "admin"]), controller_listar.listar_sub_pastas)
+
+
+//rota para CRIAR PASTAS context menu drive
+rotaDrive.post("/criar-nova-Pasta", authMiddle, middleRole(["user", "admin"]), controller_criar_pasta_context.controller_criar_pasta_context)
+
+
+
+
+
 
 
 
