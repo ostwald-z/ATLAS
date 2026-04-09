@@ -1131,3 +1131,231 @@ body.vault-mode .file-ext-badge {
   text-transform: uppercase;
 }
 
+
+
+/* ══════════════════════════════════════════
+   MOBILE RESPONSIVE
+══════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── SIDEBAR VIRA DRAWER ────────────────── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100%;
+    z-index: 5000;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16,1,0.3,1);
+    box-shadow: none;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 40px rgba(0,0,0,0.7);
+  }
+
+  .sidebar-backdrop {
+    display: block !important;
+  }
+
+  /* ── MAIN OCUPA TUDO ────────────────────── */
+  .main {
+    width: 100%;
+  }
+
+  /* ── TOPBAR COMPACTA ────────────────────── */
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  /* esconde path longo, mostra só o último segmento */
+  .path .path-segment:not(:last-child),
+  .path .path-separator:not(:last-of-type) {
+    display: none;
+  }
+
+  /* ── HEADER DA LISTA: esconde colunas extras ─ */
+  .list-header {
+    grid-template-columns: 32px 1fr 60px;
+  }
+
+  .list-header-cell:nth-child(3),
+  .list-header-cell:nth-child(5) {
+    display: none;
+  }
+
+  /* ── FILE CARD: só ícone, nome e tamanho ──── */
+  .file-card {
+    grid-template-columns: 32px 1fr 60px;
+    height: 52px; /* um pouco maior pro toque */
+  }
+
+  .file-type-col,
+  .file-ext-col {
+    display: none;
+  }
+
+  /* ── CONTEXT MENU VIRA BOTTOM SHEET ─────── */
+  .context-menu {
+    position: fixed;
+    top: auto !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    min-width: unset;
+    border-radius: 16px 16px 0 0;
+    border: 1px solid var(--border-neon);
+    border-bottom: none;
+    transform: translateY(110%);
+    transform-origin: bottom center;
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s;
+    padding: 8px 0 24px; /* espaço pro home indicator */
+  }
+
+  .context-menu.active {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* alça visual do bottom sheet */
+  .context-menu::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    margin: 6px auto 10px;
+  }
+
+  .context-menu-item {
+    padding: 14px 20px;
+    font-size: 14px;
+  }
+
+  /* ── MODAIS OCUPAM TELA TODA ────────────── */
+  .rename-box {
+    width: 92vw;
+  }
+
+  /* ── PAINEL DE TRANSFERÊNCIAS ───────────── */
+  #transferPanel,
+  #vaultTransferPanel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+  }
+
+  /* ── SELECTION INFO ─────────────────────── */
+  #selectionInfo {
+    bottom: 80px; /* não sobrepõe a FAB */
+    right: 12px;
+    left: 12px;
+    max-width: unset;
+  }
+
+  /* ── PREVIEW MODAL ──────────────────────── */
+  #previewModal > div {
+    width: 100% !important;
+    height: 92% !important;
+    border-radius: 16px 16px 0 0 !important;
+    align-self: flex-end;
+  }
+
+  /* ── TXT EDITOR ─────────────────────────── */
+  #txtEditorModal > div {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  /* ── VAULT OVERLAYS ─────────────────────── */
+  .vault-card {
+    width: 92vw;
+    padding: 28px 20px;
+  }
+
+  /* ── FAB (botão flutuante de ações) ─────── */
+  #mobileFab {
+    display: flex !important;
+  }
+}
+
+/* ── ELEMENTOS QUE SÓ EXISTEM NO MOBILE ─── */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 4999;
+  backdrop-filter: blur(2px);
+}
+
+#mobileMenuBtn {
+  display: none;
+}
+
+#mobileFab {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  #mobileMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+
+  #mobileMenuBtn:hover {
+    border-color: var(--border-neon);
+    color: var(--neon);
+  }
+
+  /* FAB — botão flutuante de upload no mobile */
+  #mobileFab {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--neon);
+    border: none;
+    color: #020617;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 4000;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px var(--neon-glow);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  #mobileFab:active {
+    transform: scale(0.92);
+    box-shadow: 0 2px 10px var(--neon-glow);
+  }
+
+  body.vault-mode #mobileFab {
+    background: var(--vault-blue);
+    box-shadow: 0 4px 20px var(--vault-blue-glow);
+  }
+}
+
+
+

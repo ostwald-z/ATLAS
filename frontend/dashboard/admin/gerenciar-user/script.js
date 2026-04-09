@@ -1,3 +1,33 @@
+// ==========================
+// VERIFICAÇÃO DE LOGIN
+// ==========================
+(async function checkAuth() {
+  try {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      // Token inválido ou não existe -> redireciona
+      window.location.href = '../../../painelDeLogin/login/index.html';
+      return;
+    }
+
+    const data = await res.json();
+    console.log('Usuário autenticado:', data.user);
+
+  } catch (err) {
+    console.error('Erro na verificação de token:', err);
+    window.location.href = '../../../painelDeLogin/login/index.html';
+  }
+})();
+
+
+
+
+
+
 document.getElementById("listarUsuariosBtn").addEventListener("click", async (evento) => {
     evento.preventDefault();
 
@@ -6,7 +36,7 @@ document.getElementById("listarUsuariosBtn").addEventListener("click", async (ev
     userList.textContent = "";
 
 
-    const resultado = await fetch("http://localhost:5555/api/user/", {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/user/`, {
         method: "GET",
         credentials: "include",
     })
@@ -70,7 +100,7 @@ document.getElementById("listarUsuarioBtnEspecifico").addEventListener("click", 
     userList.textContent = "";
 
 
-    const resultado = await fetch("http://localhost:5555/api/user/" + filtroId, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/user/` + filtroId, {
         method: "GET",
         credentials: "include"
     })
@@ -138,7 +168,7 @@ document.getElementById("aplicarPatch").addEventListener("click", async (evento)
     const obs = document.getElementById("obs").value;
     const role = document.getElementById("privilegio").value;
 
-    const resultado = await fetch("http://localhost:5555/api/user/" + id, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/user/` + id, {
         method: "PATCH",
         headers: {"Content-Type": "application/json"},
         credentials: "include",
@@ -193,7 +223,7 @@ document.getElementById("deletarUser").addEventListener("click", async (evento) 
 
     const id = document.getElementById("userId").value;
 
-    const resultado = await fetch("http://localhost:5555/api/user/" + id, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/user/` + id, {
         method: "DELETE",
         credentials:"include"
     })

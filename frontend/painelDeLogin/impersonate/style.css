@@ -20,3 +20,96 @@ body{
 #login{
     height: 30px;
 }
+
+
+
+/* ============================
+   📱 MOBILE - IMPERSONATE
+============================ */
+
+@media (max-width: 768px) {
+
+    html, body {
+        overflow: auto;
+    }
+
+    .container {
+        padding: 20px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .panel {
+        width: 100%;
+        max-width: 420px;
+        padding: 28px;
+    }
+
+    h1 {
+        font-size: 18px;
+        margin-bottom: 28px;
+        text-align: center;
+    }
+
+    .field {
+        margin-bottom: 20px;
+    }
+
+    input {
+        font-size: 16px; /* evita zoom no iOS */
+        padding: 16px;
+    }
+
+    button {
+        padding: 16px;
+        font-size: 15px;
+    }
+
+    .footer {
+        font-size: 10px;
+        margin-top: 24px;
+    }
+
+    #erro {
+        text-align: center;
+        font-size: 13px;
+        margin-top: 10px;
+    }
+}
+
+
+
+
+
+@media (max-width: 420px) {
+
+    .panel {
+        padding: 22px;
+    }
+
+    h1 {
+        font-size: 16px;
+    }
+
+    input {
+        padding: 14px;
+    }
+
+    button {
+        padding: 14px;
+        font-size: 14px;
+    }
+}
+
+
+
+
+@media (max-width: 768px) {
+
+    #idUser,
+    #chaveimpersonate,
+    #login {
+        height: auto !important;
+    }
+
+}

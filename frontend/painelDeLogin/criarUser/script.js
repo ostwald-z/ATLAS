@@ -27,7 +27,7 @@ document.getElementById("enviarForm").addEventListener("click", async (evento) =
     }
 
 
-    const resposta = await fetch ("http://localhost:5555/api/user/", {
+    const resposta = await fetch (`${window.CONFIG.API_BASE_URL}api/user/`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({

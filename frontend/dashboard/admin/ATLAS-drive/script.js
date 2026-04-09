@@ -3,7 +3,7 @@
 // ==========================
 (async function checkAuth() {
   try {
-    const res = await fetch('http://localhost:5555/api/user/apicheck', {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -315,7 +315,7 @@ fileContainer.ondrop = (e) => {
 // ==========================
 async function fetchFiles(path = '/') {
   try {
-    const response = await fetch(`http://localhost:5555/api/atlas-drive/cloud?path=${encodeURIComponent(path)}`, {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/cloud?path=${encodeURIComponent(path)}`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -373,7 +373,7 @@ function uploadFile() {
       const id = criarTransferencia(file.name, 'upload');
       const xhr = new XMLHttpRequest();
 
-      xhr.open('POST', 'http://localhost:5555/api/atlas-drive/upload', true);
+      xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, true);
       xhr.withCredentials = true;
 
       xhr.upload.onprogress = (e) => {
@@ -418,7 +418,7 @@ async function tentarPreviewIcone(file) {
     : currentPath + '/' + file.nome;
 
   try {
-    const response = await fetch('http://localhost:5555/api/atlas-drive/download', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -746,7 +746,7 @@ function downloadFile(caminho_relativo, nomeOriginal) {
   const id = criarTransferencia(nomeOriginal || caminho_relativo, 'download');
 
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', 'http://localhost:5555/api/atlas-drive/download', true);
+  xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, true);
   xhr.responseType = 'blob';
   xhr.withCredentials = true;
   xhr.setRequestHeader('Content-Type', 'application/json');
@@ -804,7 +804,7 @@ async function visualizarArquivo(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch('http://localhost:5555/api/atlas-drive/download', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -873,7 +873,7 @@ async function visualizarArquivo(caminho_relativo, nomeOriginal) {
 
 async function deleteFile(caminho_relativo, pasta_ou_arquivo) {
   try {
-    const response = await fetch('http://localhost:5555/api/atlas-drive/delete', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -941,7 +941,7 @@ function fecharModalRenomear() {
 // RENOMEIA TANTO ARQUIVO QUANTO PASTA - DEPENDENDO DE COMO O CAMINHO DIRETORIO É ENVIADO
 async function renameFile(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
   try {
-    const response = await fetch('http://localhost:5555/api/atlas-drive/renomear', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/renomear`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -1146,7 +1146,7 @@ function abrirMenuContextoVazio(e) {
     }
 
     // Drive normal
-    fetch('http://localhost:5555/api/atlas-drive/criar-nova-Pasta', {
+    fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/criar-nova-Pasta`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1458,7 +1458,7 @@ async function verificarAcessoVault(codigo) {
   }
 
   try {
-    const res = await fetch('http://localhost:5555/api/atlas-drive/vault/verificar-acesso', {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/verificar-acesso`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1537,7 +1537,7 @@ async function autenticarVault() {
     vaultAuthBtn.disabled = true;
     vaultAuthBtn.querySelector('span').textContent = 'ABRINDO VAULT...';
 
-    const res = await fetch('http://localhost:5555/api/atlas-drive/vault/autenticar', {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/autenticar`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1613,7 +1613,7 @@ vaultExitBtn.onclick = sairModoVault;
 async function fetchVaultFiles(path = '/') {
   try {
     const response = await fetch(
-      `http://localhost:5555/api/atlas-drive/vault/listar?path=${encodeURIComponent(path)}`,
+      `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/listar?path=${encodeURIComponent(path)}`,
       {
         method: 'GET',
         credentials: 'include',
@@ -1714,7 +1714,7 @@ confirmRename.onclick = () => {
     const id = vaultCriarTransferencia(novoNome, 'upload');
     const xhr = new XMLHttpRequest();
 
-    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+    xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
     xhr.withCredentials = true;
     xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
 
@@ -1746,7 +1746,7 @@ confirmRename.onclick = () => {
     const id = vaultCriarTransferencia(novoNome, 'upload');
     const xhr = new XMLHttpRequest();
 
-    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+    xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
     xhr.withCredentials = true;
     xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
 
@@ -1777,7 +1777,7 @@ confirmRename.onclick = () => {
     const id = criarTransferencia(novoNome, 'upload');
     const xhr = new XMLHttpRequest();
 
-    xhr.open('POST', 'http://localhost:5555/api/atlas-drive/upload', true);
+    xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, true);
     xhr.withCredentials = true;
 
     xhr.onload = () => {
@@ -1805,7 +1805,7 @@ confirmRename.onclick = () => {
 // ── RENAME/MOVER NO VAULT ──────────────────────
 async function renameFileVault(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
   try {
-    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/renomear', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/renomear`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -1966,7 +1966,7 @@ function downloadFileVault(caminho_relativo, nomeOriginal) {
   const id = vaultCriarTransferencia(nomeOriginal || caminho_relativo, 'download');
 
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/download', true);
+  xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, true);
   xhr.responseType = 'blob';
   xhr.withCredentials = true;
   xhr.setRequestHeader('Content-Type', 'application/json');
@@ -2009,7 +2009,7 @@ async function visualizarArquivoVault(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/download', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -2089,7 +2089,7 @@ function uploadFileVault() {
       const id = vaultCriarTransferencia(file.name, 'upload');
 
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', 'http://localhost:5555/api/atlas-drive/vault/upload', true);
+      xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
       xhr.withCredentials = true;
       xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
       // ⚠️ NÃO seta Content-Type — o browser seta automático com boundary pro multipart
@@ -2138,7 +2138,7 @@ window.uploadFile = function() {
 // ── DELETE VAULT ───────────────────────────────
 async function deleteFileVault(caminho_relativo, pasta_ou_arquivo) {
   try {
-    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/deletar', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -2199,7 +2199,7 @@ async function abrirEditorTxt(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch('http://localhost:5555/api/atlas-drive/download', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2278,7 +2278,7 @@ txtEditorSaveBtn.addEventListener('click', async () => {
 
   try {
     // 1. Deleta o arquivo original
-    const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/delete', {
+    const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2303,7 +2303,7 @@ txtEditorSaveBtn.addEventListener('click', async () => {
     formData.append('files', file);
     formData.append('caminho_escolhido', pastaDestino);
 
-    const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/upload', {
+    const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
       method: 'POST',
       credentials: 'include',
       body: formData
@@ -2334,6 +2334,7 @@ txtEditorSaveBtn.addEventListener('click', async () => {
     txtEditorSaveBtn.disabled      = false;
   }
 });
+
 
 // Fecha clicando fora ou no X
 txtEditorCloseBtn.addEventListener('click', fecharEditorTxt);
@@ -2385,7 +2386,7 @@ async function abrirEditorTxtVault(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch('http://localhost:5555/api/atlas-drive/vault/download', {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -2452,7 +2453,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       // ── VAULT ──────────────────────────────────
 
       // 1. Deleta o original no vault
-      const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/vault/deletar', {
+      const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -2480,7 +2481,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       formData.append('files', file);
       formData.append('caminho_escolhido', pastaDestino);
 
-      const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/vault/upload', {
+      const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Authorization': `Bearer ${vaultToken}` },
@@ -2497,7 +2498,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
     } else {
       // ── DRIVE NORMAL ───────────────────────────
 
-      const deleteRes = await fetch('http://localhost:5555/api/atlas-drive/delete', {
+      const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -2520,7 +2521,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       formData.append('files', file);
       formData.append('caminho_escolhido', pastaDestino);
 
-      const uploadRes = await fetch('http://localhost:5555/api/atlas-drive/upload', {
+      const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -2559,6 +2560,152 @@ txtEditorArea.addEventListener('keydown', (e) => {
     txtEditorSaveBtnNovo.click();
   }
 });
+
+
+
+
+
+// ══════════════════════════════════════════════
+// MOBILE — SIDEBAR DRAWER + TOUCH EVENTS
+// ══════════════════════════════════════════════
+
+const mobileMenuBtn    = document.getElementById('mobileMenuBtn');
+const sidebarBackdrop  = document.getElementById('sidebarBackdrop');
+const sidebarEl        = document.querySelector('.sidebar');
+
+function abrirSidebar() {
+  sidebarEl.classList.add('open');
+  sidebarBackdrop.style.display = 'block';
+  document.body.style.overflow  = 'hidden';
+}
+
+function fecharSidebar() {
+  sidebarEl.classList.remove('open');
+  sidebarBackdrop.style.display = 'none';
+  document.body.style.overflow  = '';
+}
+
+mobileMenuBtn.addEventListener('click', () => {
+  sidebarEl.classList.contains('open') ? fecharSidebar() : abrirSidebar();
+});
+
+sidebarBackdrop.addEventListener('click', fecharSidebar);
+
+// Fecha sidebar ao navegar (mobile)
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    if (window.innerWidth <= 768) fecharSidebar();
+  });
+});
+
+
+// ── LONG PRESS → CONTEXT MENU (substitui drag no mobile) ──
+function configurarLongPress(divEl, file) {
+  let longPressTimer = null;
+  const LONG_PRESS_MS = 500;
+
+  divEl.addEventListener('touchstart', (e) => {
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      // vibra se disponível
+      if (navigator.vibrate) navigator.vibrate(30);
+
+      const touch = e.touches[0];
+      // seleciona o item
+      itensSelecionados.clear();
+      limparSelecaoVisual();
+      itensSelecionados.add(file.nome);
+      divEl.classList.add('selected');
+      atualizarContadorSelecao();
+
+      // abre menu como se fosse right-click
+      const fakeEvent = {
+        preventDefault: () => {},
+        pageX: touch.clientX,
+        pageY: touch.clientY,
+        target: divEl
+      };
+
+      if (file.tipo === 'pasta') {
+        abrirMenuContextoPasta(fakeEvent, file.nome);
+      } else {
+        abrirMenuContexto(fakeEvent, file.nome, file.nome_original);
+      }
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  divEl.addEventListener('touchend', () => {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  });
+
+  divEl.addEventListener('touchmove', () => {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  });
+}
+
+
+// ── PATCH: renderFiles também configura long press ──
+const renderFilesOriginal = renderFiles;
+window.renderFiles = function(files) {
+  renderFilesOriginal(files);
+
+  // após renderizar, adiciona long press em cada card
+  document.querySelectorAll('.file-card').forEach(card => {
+    const nome = card.dataset.nome;
+    const file = files.find(f => f.nome === nome);
+    if (file) configurarLongPress(card, file);
+  });
+};
+
+
+// ── SWIPE DOWN FECHA BOTTOM SHEET ─────────────
+let contextMenuTouchStartY = 0;
+
+contextMenu.addEventListener('touchstart', (e) => {
+  contextMenuTouchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+contextMenu.addEventListener('touchend', (e) => {
+  const delta = e.changedTouches[0].clientY - contextMenuTouchStartY;
+  if (delta > 60) fecharMenuContexto(); // swipe down fecha
+});
+
+
+// ── SWIPE DOWN FECHA PREVIEW ───────────────────
+const previewModalEl = document.getElementById('previewModal');
+let previewTouchStartY = 0;
+
+previewModalEl.addEventListener('touchstart', (e) => {
+  previewTouchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+previewModalEl.addEventListener('touchend', (e) => {
+  const delta = e.changedTouches[0].clientY - previewTouchStartY;
+  if (delta > 80) {
+    previewModalEl.style.opacity = '0';
+    previewModalEl.style.pointerEvents = 'none';
+    previewContent.innerHTML = '';
+  }
+});
+
+
+// ── DOUBLE TAP PARA ABRIR PASTA NO MOBILE ──────
+// (já está no ondblclick, mas no iOS às vezes não dispara)
+document.querySelectorAll('.file-card[data-type="pasta"]').forEach(card => {
+  let lastTap = 0;
+  card.addEventListener('touchend', () => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      const nome = card.dataset.nome;
+      openItem(nome, 'pasta');
+    }
+    lastTap = now;
+  });
+});
+
+
 
 
 

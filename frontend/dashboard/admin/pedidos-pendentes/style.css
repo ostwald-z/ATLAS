@@ -308,3 +308,148 @@ input:disabled {
 .list::-webkit-scrollbar-track {
     background: transparent;
 }
+
+
+
+/* ============================
+   📱 MOBILE PRO - PEDIDOS
+============================ */
+
+@media (max-width: 900px) {
+
+    body {
+        padding: 16px;
+    }
+
+    /* WATERMARK AJUSTE */
+    .atlas-title {
+        font-size: 72px;
+        letter-spacing: 8px;
+        text-align: center;
+    }
+
+    .atlas-subtitle {
+        font-size: 12px;
+        letter-spacing: 3px;
+        text-align: center;
+    }
+
+    /* GRID já vira coluna (reforço) */
+    .admin-panel {
+        gap: 18px;
+    }
+
+    /* LISTA */
+    .list {
+        max-height: 220px;
+        padding: 10px;
+    }
+
+    /* ITEM */
+    .item {
+        grid-template-columns: 36px 1fr;
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    .item .id {
+        font-size: 14px;
+    }
+
+    /* EDITOR */
+    .editor {
+        padding: 16px;
+        gap: 10px;
+    }
+
+    /* INPUTS */
+    input,
+    textarea {
+        font-size: 16px; /* evita zoom iOS */
+        padding: 14px;
+    }
+
+    textarea {
+        min-height: 80px;
+    }
+
+    /* BOTÕES */
+    .actions {
+        gap: 12px;
+    }
+
+    .actions button {
+        padding: 14px;
+        font-size: 13px;
+    }
+
+}
+
+
+
+
+@media (max-width: 420px) {
+
+    .atlas-title {
+        font-size: 52px;
+    }
+
+    .atlas-subtitle {
+        font-size: 10px;
+    }
+
+    .list {
+        max-height: 180px;
+    }
+
+    .item {
+        font-size: 11px;
+    }
+
+    .actions button {
+        font-size: 12px;
+        padding: 12px;
+    }
+
+}
+
+
+
+
+@media (max-width: 900px) {
+
+    .right-panel {
+        order: 1;
+    }
+
+    .left-panel {
+        order: 2;
+    }
+
+}
+
+
+
+/* Scroll suave mobile */
+.list {
+    scroll-behavior: smooth;
+}
+
+
+
+@media (hover: none) {
+
+    .item:active {
+        transform: scale(0.98);
+        background: rgba(34, 211, 238, 0.18);
+    }
+
+    .actions button:active {
+        transform: scale(0.96);
+    }
+
+    #reload:active {
+        transform: scale(0.97);
+    }
+
+}

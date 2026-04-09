@@ -267,3 +267,146 @@ body {
     box-shadow: 0 0 16px rgba(34, 211, 238, 0.35);
 }
 
+
+
+
+
+/* ============================
+   📱 MOBILE ADMIN PANEL
+============================ */
+
+@media (max-width: 900px) {
+
+    /* HEADER */
+    .atlas-header {
+        padding: 16px 20px;
+    }
+
+    .atlas-header h1 {
+        font-size: 20px;
+    }
+
+    .atlas-header p {
+        font-size: 12px;
+    }
+
+    /* LAYOUT vira coluna */
+    .admin-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 0 16px 20px;
+    }
+
+    /* SIDEBAR vira bloco superior */
+    .sidebar {
+        width: 100%;
+        padding: 18px;
+    }
+
+    /* LISTA USUÁRIOS mais compacta */
+    .user-item {
+        font-size: 12px;
+        padding: 10px;
+    }
+
+    /* PANEL */
+    .panel {
+        padding: 20px;
+        border-radius: 14px;
+    }
+
+    /* FORM vira coluna */
+    .user-form {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .form-group textarea {
+        grid-column: span 1;
+    }
+
+    /* INPUTS */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px; /* evita zoom iOS */
+        padding: 14px;
+    }
+
+    /* BOTÕES */
+    .action-button,
+    .deletar-button {
+        grid-column: span 1;
+        width: 100%;
+        margin-right: 0;
+    }
+
+}
+
+
+
+@media (max-width: 420px) {
+
+    .atlas-header h1 {
+        font-size: 18px;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .sidebar {
+        padding: 14px;
+    }
+
+    .user-item {
+        font-size: 11px;
+    }
+
+}
+
+
+
+
+
+/* Lista com scroll controlado */
+@media (max-width: 900px) {
+
+    .user-list {
+        max-height: 250px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+}
+
+
+
+
+/* Feedback mobile */
+@media (hover: none) {
+
+    .sidebar-button:active,
+    .filter-button:active,
+    .action-button:active,
+    .deletar-button:active {
+        transform: scale(0.97);
+    }
+
+}
+
+
+
+
+@media (max-width: 900px) {
+
+    .panel {
+        order: 1;
+    }
+
+    .sidebar {
+        order: 2;
+    }
+
+}

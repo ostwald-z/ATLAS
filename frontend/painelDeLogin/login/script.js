@@ -15,7 +15,7 @@ document.getElementById("login").addEventListener("click", async (evento) => {
     }
 
 
-    const resultado = await fetch ("http://localhost:5555/api/user/login", {
+    const resultado = await fetch (`${window.CONFIG.API_BASE_URL}api/user/login`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         credentials: "include",

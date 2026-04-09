@@ -1,24 +1,21 @@
-// (function protectPage() {
-//   const token = localStorage.getItem('token');
+(async function checkAuth() {
+  try {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-//   if (!token) {
-//     window.location.href = '../../painelDeLogin/login/index.html';
-//     return;
-//   }
+    if (!res.ok) {
+      // Token inválido ou não existe -> redireciona
+      window.location.href = '../../painelDeLogin/login/index.html';
+      return;
+    }
 
-//   const payload = JSON.parse(atob(token.split('.')[1]));
-//   const now = Math.floor(Date.now() / 1000);
+    const data = await res.json();
+    console.log('Usuário autenticado:', data.user);
 
-//   if (payload.exp < now) {
-//     localStorage.removeItem('token');
-//     window.location.href = '../../painelDeLogin/login/index.html';
-//     return;
-//   }
-
-//   if (payload.role !== 'ADMIN') {
-//     window.location.href = '/403.html';
-//     return;
-//   }
-// })();
-
-
+  } catch (err) {
+    console.error('Erro na verificação de token:', err);
+    window.location.href = '../../painelDeLogin/login/index.html';
+  }
+})();

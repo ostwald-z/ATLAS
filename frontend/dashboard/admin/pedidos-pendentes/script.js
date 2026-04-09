@@ -1,3 +1,27 @@
+(async function checkAuth() {
+  try {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      // Token inválido ou não existe -> redireciona
+      window.location.href = '../../../painelDeLogin/login/index.html';
+      return;
+    }
+
+    const data = await res.json();
+    console.log('Usuário autenticado:', data.user);
+
+  } catch (err) {
+    console.error('Erro na verificação de token:', err);
+    window.location.href = '../../../painelDeLogin/login/index.html';
+  }
+})();
+
+
+
 
 document.getElementById("reload").addEventListener("click", async () => {
 
@@ -5,7 +29,7 @@ document.getElementById("reload").addEventListener("click", async () => {
     requestList.textContent = "";
 
 
-    const resultado = await fetch("http://localhost:5555/api/gatekeeper", {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper`, {
         method: "GET",
         credentials: "include"
     })
@@ -75,7 +99,7 @@ async function selectRequest(el) {
 
     const idUser = el.querySelector('.id').innerText;
     
-    const resultado = await fetch("http://localhost:5555/api/gatekeeper/" + idUser, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/` + idUser, {
         method: "GET",
         credentials: "include"
     })
@@ -99,7 +123,7 @@ document.getElementById("aprovarbotao").addEventListener("click", async () => {
 
     const idUser = document.getElementById('f-id').value
 
-    const resultado = await fetch("http://localhost:5555/api/gatekeeper/" + idUser, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/` + idUser, {
         method: "POST",
         credentials: "include"
     })
@@ -148,7 +172,7 @@ document.getElementById("recusarbotao").addEventListener("click", async () => {
 
     const userID = document.getElementById("f-id").value;
 
-    const resultado = await fetch ("http://localhost:5555/api/gatekeeper/" + userID, {
+    const resultado = await fetch (`${window.CONFIG.API_BASE_URL}api/gatekeeper/` + userID, {
         method: "DELETE",
         credentials: "include"
     })
@@ -194,7 +218,7 @@ document.getElementById("editarbotao").addEventListener("click", async () => {
     const obs = document.getElementById("f-obs").value;
 
 
-    const resultado = await fetch("http://localhost:5555/api/gatekeeper/" + idUser, {
+    const resultado = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/` + idUser, {
         method: "PATCH",
         headers: {"Content-Type": "application/json"},
         credentials: "include",

@@ -14,7 +14,7 @@ document.getElementById("login").addEventListener("click", async (evento) => {
         return;
     }
 
-    const resposta = await fetch ("http://localhost:5555/api/impersonate/login/" + idUser, {
+    const resposta = await fetch (`${window.CONFIG.API_BASE_URL}api/impersonate/login/` + idUser, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         credentials: "include",

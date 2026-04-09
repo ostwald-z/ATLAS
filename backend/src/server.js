@@ -10,7 +10,7 @@ const cors = require("cors")
 server.use(cookies())
 
 server.use(cors({
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,  // só trocar no .env quando for testar NGROK ou localhost
     credentials: true
 }))
 

@@ -52,6 +52,9 @@
     </div>
   </div>
 
+  <!-- BACKDROP MOBILE (fora da sidebar) -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
   <!-- ==========================
        MAIN AREA
        ========================== -->
@@ -60,6 +63,9 @@
     <!-- TOPBAR -->
     <div class="topbar">
       
+      <!-- BOTÃO MENU MOBILE -->
+      <button id="mobileMenuBtn" title="Menu">☰</button>
+
       <!-- INDICADOR VAULT NA TOPBAR -->
       <div class="vault-topbar-indicator" id="vaultTopbarIndicator">
         <span style="width:5px;height:5px;border-radius:50%;background:#0af;box-shadow:0 0 6px #0af;animation:vaultPulse 2s infinite;display:inline-block;"></span>
@@ -437,7 +443,10 @@
 
 
 
+  <!-- FAB MOBILE: upload rápido -->
+  <button id="mobileFab" onclick="uploadFile()" title="Upload">+</button>
 
+  <script src="../../../config.js"></script>
   <script src="script.js"></script>
 
 

@@ -61,3 +61,134 @@ body{
 #senha{
     height: 20px;
 }
+
+
+
+/* ==============================
+   📱 MOBILE ADAPTATION ATLAS
+================================ */
+
+@media (max-width: 900px) {
+
+    body {
+        padding: 20px;
+        overflow: auto;
+    }
+
+    /* MARCA D'ÁGUA */
+    body::after {
+        font-size: 60px;
+        right: 20px;
+        bottom: 20px;
+        letter-spacing: 6px;
+    }
+
+    /* CONTAINER */
+    .atlas-container {
+        width: 100%;
+        max-width: 500px;
+        padding: 22px;
+        border-radius: 12px;
+    }
+
+    /* HEADER */
+    .atlas-header {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .atlas-title h1 {
+        font-size: 18px;
+    }
+
+    .atlas-title span {
+        font-size: 10px;
+    }
+
+    /* CHAVES (inputs do topo) */
+    .atlas-optional-keys {
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .atlas-optional-keys input {
+        width: 100%;
+    }
+
+    /* FORM vira coluna */
+    form {
+        grid-template-columns: 1fr;
+    }
+
+    textarea {
+        grid-column: 1;
+    }
+
+    .atlas-key {
+        grid-column: 1;
+    }
+
+    .atlas-message {
+        grid-column: 1;
+        font-size: 13px;
+    }
+
+    .atlas-actions {
+        grid-column: 1;
+        justify-content: center;
+    }
+
+    button {
+        width: 100%;
+        padding: 16px;
+        font-size: 14px;
+    }
+
+    /* INPUTS */
+    input, textarea {
+        font-size: 16px; /* evita zoom no iOS */
+        padding: 14px;
+    }
+}
+
+
+
+
+
+
+@media (max-width: 480px) {
+
+    .atlas-container {
+        padding: 18px;
+    }
+
+    .atlas-title h1 {
+        font-size: 16px;
+        letter-spacing: 1px;
+    }
+
+    .atlas-title span {
+        font-size: 9px;
+    }
+
+    body::after {
+        font-size: 40px;
+    }
+
+    button {
+        letter-spacing: 1px;
+    }
+}
+
+
+
+
+@media (max-width: 900px) {
+    #chavePrivilegio,
+    #chaveNoPending {
+        position: static !important;
+    }
+}
+
+
