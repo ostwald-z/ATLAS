@@ -17,6 +17,9 @@ const {verificarAcessoUser} = require("./middlewares/verificarAcesso-antes-User"
 server.use(cookies())
 
 
+// Ativa a confiança no proxy (essencial para rate limiting em produção)
+server.set('trust proxy', 1); 
+
 
 server.use(cors({
     origin: process.env.FRONTEND_URL,  // só trocar no .env quando for testar NGROK ou localhost
