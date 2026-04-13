@@ -18,6 +18,10 @@ const {authMiddle} = require("../../middlewares/authMiddleware")
 const {authMiddle_bearer_vault} = require("../../middlewares/authMiddleVaultDrive")
 
 
+// middleware de rate limit 
+const {middlewareRate} = require("../../middlewares/rateLimitMiddleware")
+
+
 //middleware de ROLE para permissão
 const middleRole = require("../../middlewares/roleMiddleware")
 
@@ -84,7 +88,7 @@ rotaDrive.post("/vault/verificar-acesso", authMiddle, middleRole(["user", "admin
 
 
 // autentica de fato o usuario após acertar a senha no painel , entrega SESSION TOKEN (sessionStorage)
-rotaDrive.post("/vault/autenticar", authMiddle, middleRole(["user", "admin"]), controller_vault_autenticar.controller_verificar_senha_vault)
+rotaDrive.post("/vault/autenticar", middlewareRate, authMiddle, middleRole(["user", "admin"]), controller_vault_autenticar.controller_verificar_senha_vault)
 
 
 // ROTA QUE LISTA A PORRA DO ATLAS VAULT  (MIDDLEWARE PERSONALIZADO para ler TOKEN DADO PARA ALTERAÇÕES E LEITURA DO VAULT)

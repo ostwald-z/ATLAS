@@ -15,6 +15,9 @@ const {authMiddle} = require("../../middlewares/authMiddleware")
 const roleMiddle = require("../../middlewares/roleMiddleware")
 
 
+//importando RATE LIMIT
+const {middlewareRate} = require("../../middlewares/rateLimitMiddleware")
+
 //importando validarBody
 const {validarBody} = require("../../middlewares/validarBody")
 
@@ -38,11 +41,11 @@ userRota.get("/apicheck", authMiddle, roleMiddle(["user", "admin"]), api_check_c
 
 
 //criar usuario
-userRota.post("/", validarBody(schemaCriarUser),controllerCriar.criarUser)
+userRota.post("/", middlewareRate, validarBody(schemaCriarUser),controllerCriar.criarUser)
 
 
 //login do usuario
-userRota.post("/login", validarBody(schemaLoginUser),controllerLogin.loginUser)
+userRota.post("/login", middlewareRate, validarBody(schemaLoginUser),controllerLogin.loginUser)
 
 
 //listar todos os usuarios
