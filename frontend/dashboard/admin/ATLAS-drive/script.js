@@ -2601,24 +2601,23 @@ document.querySelectorAll('.nav-item').forEach(item => {
 
 // ── LONG PRESS → CONTEXT MENU (substitui drag no mobile) ──
 function configurarLongPress(divEl, file) {
-  let longPressTimer = null;
-  const LONG_PRESS_MS = 500;
+  let timer = null;
+  let ativou = false; // flag: long press disparou?
+  const MS = 500;
 
   divEl.addEventListener('touchstart', (e) => {
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null;
-      // vibra se disponível
+    ativou = false;
+    timer = setTimeout(() => {
+      ativou = true;
       if (navigator.vibrate) navigator.vibrate(30);
 
-      const touch = e.touches[0];
-      // seleciona o item
       itensSelecionados.clear();
       limparSelecaoVisual();
       itensSelecionados.add(file.nome);
       divEl.classList.add('selected');
       atualizarContadorSelecao();
 
-      // abre menu como se fosse right-click
+      const touch = e.touches[0];
       const fakeEvent = {
         preventDefault: () => {},
         pageX: touch.clientX,
@@ -2626,23 +2625,23 @@ function configurarLongPress(divEl, file) {
         target: divEl
       };
 
-      if (file.tipo === 'pasta') {
-        abrirMenuContextoPasta(fakeEvent, file.nome);
-      } else {
-        abrirMenuContexto(fakeEvent, file.nome, file.nome_original);
-      }
-    }, LONG_PRESS_MS);
+      if (file.tipo === 'pasta') abrirMenuContextoPasta(fakeEvent, file.nome);
+      else abrirMenuContexto(fakeEvent, file.nome, file.nome_original);
+
+    }, MS);
   }, { passive: true });
 
   divEl.addEventListener('touchend', () => {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
+    clearTimeout(timer); timer = null;
+  });
+  divEl.addEventListener('touchmove', () => {
+    clearTimeout(timer); timer = null;
   });
 
-  divEl.addEventListener('touchmove', () => {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-  });
+  // IMPORTANTE: bloqueia o click se foi long press
+  divEl.addEventListener('click', (e) => {
+    if (ativou) { e.stopPropagation(); ativou = false; }
+  }, true);
 }
 
 
@@ -2703,6 +2702,15 @@ document.querySelectorAll('.file-card[data-type="pasta"]').forEach(card => {
     }
     lastTap = now;
   });
+});
+
+
+
+
+document.addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.file-card')) {
+    e.preventDefault(); // cancela menu nativo do browser
+  }
 });
 
 

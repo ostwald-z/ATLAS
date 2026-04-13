@@ -1359,3 +1359,46 @@ body.vault-mode .file-ext-badge {
 
 
 
+
+.file-card {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* iOS: remove callout nativo */
+  touch-action: manipulation;  /* remove delay de 300ms no tap */
+}
+
+/* impede seleção em toda a lista */
+.file-container {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+
+
+
+@media (max-width: 768px) {
+  .file-card {
+    height: 56px; /* era 52px */
+    padding: 0 12px;
+  }
+  
+  #backButton,
+  #mobileMenuBtn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .actions button {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+
