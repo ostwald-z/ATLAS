@@ -33,7 +33,7 @@
 
     <!-- BOTÃO SAIR DO VAULT (aparece só no modo vault) -->
     <button class="vault-exit-btn" id="vaultExitBtn">
-      ⊗ &nbsp;FECHAR ATLAS VAULT
+      ⊗ &nbsp;Sair do vault
     </button>
 
     <div class="sidebar-section">Principal</div>
@@ -45,6 +45,15 @@
     </div>
     <div class="nav-item">
       <span class="nav-icon">☆</span> Favoritos
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">Atividade</div>
+    <div class="nav-item" id="navOperacoes" onclick="abrirDrawerOperacoes()">
+      <span class="nav-icon">↕</span>
+      <span>Operações</span>
+      <span id="operacoesBadge" class="operacoes-badge" style="display:none;"></span>
     </div>
 
     <div class="sidebar-divider"></div>
@@ -72,7 +81,7 @@
       <!-- INDICADOR VAULT NA TOPBAR -->
       <div class="vault-topbar-indicator" id="vaultTopbarIndicator">
         <span style="width:5px;height:5px;border-radius:50%;background:#0af;box-shadow:0 0 6px #0af;animation:vaultPulse 2s infinite;display:inline-block;"></span>
-        VAULT
+        Vault ativo
       </div>
 
       <button id="backButton" title="Voltar">← Voltar</button>
@@ -147,53 +156,19 @@
 
 
   
-  <div id="previewModal" style="
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(2,6,23,0.85);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-
-    opacity: 0;
-    pointer-events: none;
-    transition: 0.25s;
-  ">
-    <div style="
-      width: 80%;
-      height: 80%;
-      background: #020617;
-      border-radius: 12px;
-      border: 1px solid rgba(34,211,238,0.2);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    ">
-
-      <!-- HEADER -->
-      <div id="previewHeader" style="
-        padding: 15px 20px;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        font-size: 18px;
-        color: var(--neon);
-        font-weight: bold;
-      ">
-        Nome do arquivo
+  <div id="previewModal">
+    <div id="previewModalInner">
+      <div id="previewModalHeader">
+        <div id="previewHeaderLeft">
+          <span id="previewHeaderIcon"></span>
+          <span id="previewHeader">Nome do arquivo</span>
+        </div>
+        <div id="previewHeaderActions">
+          <button id="previewDownloadBtn">↓ Baixar</button>
+          <button id="previewCloseBtn">✕</button>
+        </div>
       </div>
-
-      <!-- CONTEÚDO -->
-      <div id="previewContent" style="
-        flex: 1;
-        padding: 20px;
-        overflow: auto;
-      ">
-      </div>
-
+      <div id="previewContent"></div>
     </div>
   </div>
 
@@ -227,43 +202,19 @@
   </div>
 
 
-  <!-- PAINEL DE TRANSFERÊNCIAS (canto inferior esquerdo) -->
-  <div id="transferPanel" style="
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    width: 320px;
-    background: #0f172a;
-    border: 1px solid rgba(34,211,238,0.2);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-    z-index: 9998;
-    display: none;
-    flex-direction: column;
-  ">
-    <!-- HEADER -->
-    <div style="
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      cursor: pointer;
-    " id="transferPanelHeader">
-      <span style="color:#e2e8f0; font-size:13px; font-weight:600;">Transferências</span>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <span id="transferToggleIcon" style="color:#94a3b8; font-size:16px;">▾</span>
-        <span id="transferCloseBtn" style="color:#94a3b8; font-size:16px; cursor:pointer;">✕</span>
+  <!-- PAINEL DE TRANSFERÊNCIAS — mini indicador -->
+  <div id="transferPanel" class="transfer-panel-mini">
+    <div class="transfer-panel-mini-header" id="transferPanelHeader">
+      <div class="transfer-panel-mini-left">
+        <div class="transfer-panel-mini-dot" id="transferDot"></div>
+        <span id="transferPanelLabel">Transferindo...</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="transferToggleIcon" class="transfer-panel-mini-toggle">▾</span>
+        <button class="transfer-panel-mini-open" onclick="abrirDrawerOperacoes()">Ver tudo</button>
       </div>
     </div>
-
-    <!-- LISTA DE TAREFAS -->
-    <div id="transferList" style="
-      max-height: 280px;
-      overflow-y: auto;
-      padding: 8px 0;
-    "></div>
+    <div id="transferList" class="transfer-panel-mini-list"></div>
   </div>
 
 
@@ -272,9 +223,10 @@
   <!-- ══ VAULT: TELA 1 — VERIFICAÇÃO DE ACESSO ══ -->
   <div id="vaultAccessOverlay" class="vault-overlay">
     <div class="vault-card" id="vaultAccessCard">
-      <div class="vault-eyebrow">Atlas Secure System</div>
-      <div class="vault-title">CIPHER <span>ACCESS</span></div>
-      <div class="vault-subtitle">SISTEMA DE ACESSO RESTRITO — NÍVEL ALPHA</div>
+      <div class="vault-card-icon">🔒</div>
+      <div class="vault-eyebrow">Atlas Vault</div>
+      <div class="vault-title">Área protegida</div>
+      <div class="vault-subtitle">Este conteúdo é privado. Insira seu código de acesso para continuar.</div>
 
       <div class="vault-status">
         <div class="vault-status-dot"></div>
@@ -294,11 +246,11 @@
       </div>
 
       <button class="vault-btn" id="vaultAccessBtn">
-        <span>VERIFICAR IDENTIDADE</span>
+        <span>Continuar</span>
       </button>
 
       <div class="vault-error" id="vaultAccessError">
-        ACESSO NEGADO — CÓDIGO INVÁLIDO
+        Código incorreto, tente novamente.
       </div>
     </div>
   </div>
@@ -307,16 +259,17 @@
   <!-- ══ VAULT: TELA 2 — AUTENTICAÇÃO VAULT ══ -->
   <div id="vaultAuthOverlay" class="vault-overlay">
     <div class="vault-card" id="vaultAuthCard">
-      <div class="vault-eyebrow">Atlas Vault Protocol</div>
-      <div class="vault-title">VAULT <span>CLEARANCE</span></div>
-      <div class="vault-subtitle">AUTENTICAÇÃO DE SEGUNDO FATOR REQUERIDA</div>
+      <div class="vault-card-icon">🗝️</div>
+      <div class="vault-eyebrow">Atlas Vault</div>
+      <div class="vault-title">Quase lá</div>
+      <div class="vault-subtitle">Identidade confirmada. Insira sua chave para abrir o vault.</div>
 
       <div class="vault-status">
         <div class="vault-status-dot"></div>
-        IDENTIDADE CONFIRMADA — AGUARDANDO CHAVE
+        Identidade verificada
       </div>
 
-      <label class="vault-input-label">Chave mestra do vault</label>
+      <label class="vault-input-label">Chave do vault</label>
       <div class="vault-input-wrap">
         <input
           type="password"
@@ -329,11 +282,11 @@
       </div>
 
       <button class="vault-btn" id="vaultAuthBtn">
-        <span>ABRIR O VAULT</span>
+        <span>Abrir vault</span>
       </button>
 
       <div class="vault-error" id="vaultAuthError">
-        CHAVE INVÁLIDA — ACESSO BLOQUEADO
+        Chave incorreta. Tente novamente.
       </div>
     </div>
   </div>
@@ -342,7 +295,7 @@
   <!-- VAULT TRANSFER PANEL -->
   <div id="vaultTransferPanel">
     <div class="vault-transfer-header" id="vaultTransferHeader">
-      <div class="vault-transfer-title">Operações Vault</div>
+      <div class="vault-transfer-title">Transferências (vault)</div>
       <div class="vault-transfer-controls">
         <span id="vaultTransferToggle">▾</span>
         <span id="vaultTransferClose">✕</span>
@@ -448,6 +401,44 @@
 
   <!-- FAB MOBILE: upload rápido -->
   <button id="mobileFab" onclick="uploadFile()" title="Upload">+</button>
+
+
+
+  <!-- ══ DRAWER DE OPERAÇÕES ══ -->
+  <div id="operacoesBackdrop" class="op-backdrop"></div>
+
+  <div id="operacoesDrawer" class="op-drawer">
+
+    <div class="op-drawer-header">
+      <div class="op-drawer-title-wrap">
+        <span class="op-drawer-title">Operações</span>
+        <span id="operacoesBadgeDrawer" class="operacoes-badge" style="display:none;"></span>
+      </div>
+      <button class="op-drawer-close" id="opDrawerClose">✕</button>
+    </div>
+
+    <!-- ATIVAS -->
+    <div id="opSectionAtivas">
+      <div class="op-section-label">Em andamento</div>
+      <div id="opListAtivas" class="op-list"></div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div id="opSectionHistorico">
+      <div class="op-section-label" style="margin-top:8px;">Concluídas recentemente</div>
+      <div id="opListHistorico" class="op-list"></div>
+    </div>
+
+    <!-- VAZIO -->
+    <div id="opEmpty" class="op-empty">
+      <div class="op-empty-icon">↕</div>
+      <div>Nenhuma operação ainda</div>
+      <div class="op-empty-sub">Uploads e downloads aparecerão aqui</div>
+    </div>
+
+  </div>
+
+
 
   <script src="../../../config.js"></script>
   <script src="script.js"></script>

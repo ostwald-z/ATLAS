@@ -68,6 +68,22 @@ function formatarTamanho(bytes) {
 
 
 
+function calcularETA(bytesCarregados, bytesTotal, inicioMs) {
+  if (!bytesCarregados || !bytesTotal || !inicioMs) return '';
+  const decorrido = (Date.now() - inicioMs) / 1000;
+  if (decorrido < 0.5) return '';
+  const velocidade = bytesCarregados / decorrido; // bytes/s
+  if (velocidade <= 0) return '';
+  const restante = (bytesTotal - bytesCarregados) / velocidade;
+  if (restante < 1) return '< 1s';
+  if (restante < 60) return `~${Math.round(restante)}s`;
+  const min = Math.floor(restante / 60);
+  const seg = Math.round(restante % 60);
+  return `~${min}m ${seg}s`;
+}
+
+
+
 
 // Ao carregar a página
 fetchFiles('/');
@@ -95,11 +111,11 @@ let transferencias = {};
 let transferIdCounter = 0;
 let panelMinimizado = false;
 
-transferCloseBtn.onclick = (e) => {
-  e.stopPropagation();
-  transferPanel.style.display = 'none';
-  transferencias = {};
-  transferList.innerHTML = '';
+// O mini painel não tem mais X — o header minimiza/expande
+transferPanelHeader.onclick = () => {
+  panelMinimizado = !panelMinimizado;
+  transferList.style.display = panelMinimizado ? 'none' : 'block';
+  document.getElementById('transferToggleIcon').textContent = panelMinimizado ? '▸' : '▾';
 };
 
 transferPanelHeader.onclick = () => {
@@ -111,7 +127,9 @@ transferPanelHeader.onclick = () => {
 function criarTransferencia(nome, tipo) {
   const id = ++transferIdCounter;
 
-  transferencias[id] = { nome, tipo, percent: 0, status: 'running' };
+  transferencias[id] = { nome, tipo, percent: 0, status: 'running', inicioMs: Date.now(), xhr: null };
+
+  opCriar(id, nome, tipo, false, null);
 
   const item = document.createElement('div');
   item.className = 'transfer-item';
@@ -122,12 +140,24 @@ function criarTransferencia(nome, tipo) {
   item.innerHTML = `
     <div class="transfer-item-header">
       <span class="transfer-item-name">${icone} ${nome}</span>
-      <span class="transfer-item-status" id="transfer-status-${id}">0%</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="transfer-item-status" id="transfer-status-${id}">0%</span>
+        <button class="transfer-cancel-btn" id="transfer-cancel-${id}" title="Cancelar">✕</button>
+      </div>
     </div>
     <div class="transfer-bar-bg">
       <div class="transfer-bar-fill" id="transfer-bar-${id}"></div>
     </div>
+    <div class="transfer-item-eta" id="transfer-eta-${id}"></div>
   `;
+
+  // configura o botão cancelar
+  setTimeout(() => {
+    const cancelBtn = document.getElementById(`transfer-cancel-${id}`);
+    if (cancelBtn) {
+      cancelBtn.onclick = () => cancelarTransferencia(id);
+    }
+  }, 0);
 
   transferList.appendChild(item);
 
@@ -145,17 +175,36 @@ function criarTransferencia(nome, tipo) {
   return id;
 }
 
-function atualizarTransferencia(id, percent) {
+function atualizarTransferencia(id, percent, bytesCarregados, bytesTotal) {
   const bar = document.getElementById(`transfer-bar-${id}`);
   const status = document.getElementById(`transfer-status-${id}`);
+  const eta = document.getElementById(`transfer-eta-${id}`);
 
   if (!bar || !status) return;
 
   bar.style.width = percent + '%';
   status.textContent = Math.round(percent) + '%';
+
+  if (eta && bytesCarregados && bytesTotal) {
+    const t = transferencias[id];
+    const etaStr = t ? calcularETA(bytesCarregados, bytesTotal, t.inicioMs) : '';
+    eta.textContent = etaStr ? `${formatarTamanho(bytesCarregados)} de ${formatarTamanho(bytesTotal)} · ${etaStr}` : '';
+  }
+
+  const _t = transferencias[id];
+  if (_t) {
+    const etaStr = (bytesCarregados && bytesTotal) ? calcularETA(bytesCarregados, bytesTotal, _t.inicioMs) : '';
+    opAtualizar(id, percent, bytesCarregados, bytesTotal, etaStr);
+  }
+
 }
 
 function finalizarTransferencia(id, sucesso = true) {
+
+  
+
+  opFinalizar(id, sucesso);
+
   const bar = document.getElementById(`transfer-bar-${id}`);
   const status = document.getElementById(`transfer-status-${id}`);
 
@@ -193,7 +242,35 @@ function finalizarTransferencia(id, sucesso = true) {
 }
 
 
+function cancelarTransferencia(id) {
 
+  const t = transferencias[id];
+  if (!t) return;
+  if (t.xhr) t.xhr.abort();
+
+  const bar = document.getElementById(`transfer-bar-${id}`);
+  const status = document.getElementById(`transfer-status-${id}`);
+  const cancelBtn = document.getElementById(`transfer-cancel-${id}`);
+  const eta = document.getElementById(`transfer-eta-${id}`);
+
+  if (bar) { bar.style.width = '0%'; bar.classList.add('error'); }
+  if (status) { status.textContent = 'Cancelado'; status.classList.add('error'); }
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  if (eta) eta.textContent = '';
+
+  setTimeout(() => {
+    const item = document.getElementById(`transfer-${id}`);
+    if (item) {
+      item.style.opacity = '0';
+      item.style.transition = 'opacity 0.3s';
+      setTimeout(() => {
+        item.remove();
+        delete transferencias[id];
+        if (transferList.children.length === 0) transferPanel.style.display = 'none';
+      }, 300);
+    }
+  }, 1500);
+}
 
 
 
@@ -372,13 +449,16 @@ function uploadFile() {
 
       const id = criarTransferencia(file.name, 'upload');
       const xhr = new XMLHttpRequest();
+      if (transferencias[id]) transferencias[id].xhr = xhr;
+
+      if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
 
       xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, true);
       xhr.withCredentials = true;
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-          atualizarTransferencia(id, (e.loaded / e.total) * 100);
+          atualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
         }
       };
 
@@ -746,6 +826,9 @@ function downloadFile(caminho_relativo, nomeOriginal) {
   const id = criarTransferencia(nomeOriginal || caminho_relativo, 'download');
 
   const xhr = new XMLHttpRequest();
+  if (transferencias[id]) transferencias[id].xhr = xhr;
+  
+  if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
   xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, true);
   xhr.responseType = 'blob';
   xhr.withCredentials = true;
@@ -753,7 +836,7 @@ function downloadFile(caminho_relativo, nomeOriginal) {
 
   xhr.onprogress = (e) => {
     if (e.lengthComputable) {
-      atualizarTransferencia(id, (e.loaded / e.total) * 100);
+      atualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
     }
   };
 
@@ -1028,6 +1111,99 @@ const deletarArquivo = document.getElementById("deletarArquivo")
 
 
 
+
+// ── PREVIEW MODAL — LÓGICA CENTRAL ────────────────
+let _previewCurrentUrl = null;
+let _previewCurrentCaminho = null;
+let _previewCurrentNome = null;
+let _previewIsVault = false;
+
+function _abrirPreviewModal(url, blob, nome, nomeOriginal, caminho, isVault) {
+  _previewCurrentUrl = url;
+  _previewCurrentCaminho = caminho;
+  _previewCurrentNome = nomeOriginal;
+  _previewIsVault = isVault;
+
+  const iconEl = document.getElementById('previewHeaderIcon');
+  const headerEl = document.getElementById('previewHeader');
+  const contentEl = document.getElementById('previewContent');
+  const modal = document.getElementById('previewModal');
+
+  headerEl.textContent = nomeOriginal || nome;
+  iconEl.textContent = getFileIcon(nome, 'arquivo');
+  contentEl.innerHTML = '';
+
+  if (nome.match(/\.(jpg|jpeg|png|gif|webp|ico)$/)) {
+    contentEl.style.padding = '24px';
+    const img = document.createElement('img');
+    img.src = url;
+    contentEl.appendChild(img);
+
+  } else if (nome.match(/\.(txt|json|js|html|css|md)$/)) {
+    blob.text().then(text => {
+      contentEl.style.padding = '24px';
+      contentEl.style.alignItems = 'flex-start';
+      contentEl.style.justifyContent = 'flex-start';
+      const pre = document.createElement('pre');
+      pre.textContent = text;
+      contentEl.appendChild(pre);
+    });
+
+  } else {
+    contentEl.style.padding = '40px';
+    contentEl.innerHTML = `
+      <div class="preview-unsupported">
+        <div class="preview-unsupported-icon">◫</div>
+        <div>Pré-visualização não disponível para este formato</div>
+        <button onclick="downloadFile(_previewCurrentCaminho, _previewCurrentNome)" style="
+          margin-top: 8px;
+          background: var(--accent);
+          border: none;
+          color: #fff;
+          padding: 7px 16px;
+          border-radius: var(--radius-sm);
+          font-size: 13px;
+          font-family: 'Inter', sans-serif;
+          cursor: pointer;
+        ">↓ Baixar arquivo</button>
+      </div>`;
+  }
+
+  modal.classList.add('open');
+}
+
+function _fecharPreviewModal() {
+  const modal = document.getElementById('previewModal');
+  modal.classList.remove('open');
+  setTimeout(() => {
+    document.getElementById('previewContent').innerHTML = '';
+  }, 220);
+}
+
+// Botões do novo modal
+document.getElementById('previewCloseBtn').addEventListener('click', _fecharPreviewModal);
+document.getElementById('previewModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('previewModal')) _fecharPreviewModal();
+});
+document.getElementById('previewDownloadBtn').addEventListener('click', () => {
+  if (_previewCurrentCaminho && _previewCurrentNome) {
+    downloadFile(_previewCurrentCaminho, _previewCurrentNome);
+  }
+});
+
+// Swipe down fecha no mobile
+document.getElementById('previewModal').addEventListener('touchstart', (e) => {
+  _previewTouchStart = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('previewModal').addEventListener('touchend', (e) => {
+  if (e.changedTouches[0].clientY - _previewTouchStart > 80) _fecharPreviewModal();
+});
+let _previewTouchStart = 0;
+
+
+
+
+
 // CONTEXTO SOBRE ARQUIVOS
 function abrirMenuContexto(e, nome, nomeOriginal) {
   e.preventDefault();
@@ -1230,13 +1406,6 @@ backButton.onclick = () => {
 };
 
 
-previewModal.addEventListener('click', (e) => {
-  if (e.target === previewModal) {
-    previewModal.style.opacity = '0';
-    previewModal.style.pointerEvents = 'none';
-    previewContent.innerHTML = '';
-  }
-});
 
 
 
@@ -1874,10 +2043,20 @@ vaultTransferHeader.onclick = () => {
   vaultTransferToggle.textContent = vaultTransferMinimized ? '▸' : '▾';
 };
 
+
+const vaultTransferInicio = {};
+const vaultTransferXHR = {};
+
 function vaultCriarTransferencia(nome, tipo) {
+
   const id = ++vaultTransferId;
+
+  vaultTransferInicio[id] = Date.now();
+  opCriar(id, nome, tipo, true, null);
   const icone = tipo === 'download' ? '⬇' : '⬆';
   const labelTipo = tipo === 'download' ? 'DOWNLOAD' : 'UPLOAD';
+
+  
 
   const item = document.createElement('div');
   item.className = 'vault-transfer-item';
@@ -1885,15 +2064,23 @@ function vaultCriarTransferencia(nome, tipo) {
   item.innerHTML = `
     <div class="vault-transfer-item-top">
       <span class="vault-transfer-item-name">${icone} ${nome}</span>
-      <span class="vault-transfer-item-pct" id="vtransfer-pct-${id}">0%</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="vault-transfer-item-pct" id="vtransfer-pct-${id}">0%</span>
+        <button class="transfer-cancel-btn" id="vtransfer-cancel-${id}" title="Cancelar">✕</button>
+      </div>
     </div>
     <div class="vault-transfer-bar-bg">
       <div class="vault-transfer-bar-fill" id="vtransfer-bar-${id}"></div>
     </div>
     <div class="vault-transfer-item-meta" id="vtransfer-meta-${id}">
-      ${labelTipo} · INICIANDO
+      ${labelTipo} · Iniciando
     </div>
   `;
+
+  setTimeout(() => {
+    const cancelBtn = document.getElementById(`vtransfer-cancel-${id}`);
+    if (cancelBtn) cancelBtn.onclick = () => cancelarVaultTransferencia(id);
+  }, 0);
 
   vaultTransferList.appendChild(item);
 
@@ -1918,11 +2105,20 @@ function vaultAtualizarTransferencia(id, percent, bytesCarregados, bytesTotal) {
   pct.textContent = Math.round(percent) + '%';
 
   if (meta && bytesCarregados && bytesTotal) {
-    meta.textContent = `${formatarTamanho(bytesCarregados)} / ${formatarTamanho(bytesTotal)}`;
+    const etaStr = calcularETA(bytesCarregados, bytesTotal, vaultTransferInicio[id]);
+    meta.textContent = `${formatarTamanho(bytesCarregados)} / ${formatarTamanho(bytesTotal)}${etaStr ? ' · ' + etaStr : ''}`;
   }
+
+
+  const etaVault = calcularETA(bytesCarregados, bytesTotal, vaultTransferInicio[id]);
+  opAtualizar(id, percent, bytesCarregados, bytesTotal, etaVault);
+
 }
 
 function vaultFinalizarTransferencia(id, sucesso = true) {
+
+  opFinalizar(id, sucesso);
+
   const bar  = document.getElementById(`vtransfer-bar-${id}`);
   const pct  = document.getElementById(`vtransfer-pct-${id}`);
   const meta = document.getElementById(`vtransfer-meta-${id}`);
@@ -1958,6 +2154,38 @@ function vaultFinalizarTransferencia(id, sucesso = true) {
 
 
 
+function cancelarVaultTransferencia(id) {
+
+  
+
+  if (vaultTransferXHR[id]) vaultTransferXHR[id].abort();
+
+  const bar = document.getElementById(`vtransfer-bar-${id}`);
+  const pct = document.getElementById(`vtransfer-pct-${id}`);
+  const meta = document.getElementById(`vtransfer-meta-${id}`);
+  const cancelBtn = document.getElementById(`vtransfer-cancel-${id}`);
+
+  if (bar) { bar.classList.add('error'); }
+  if (pct) { pct.textContent = 'Cancelado'; pct.classList.add('error'); }
+  if (meta) meta.textContent = 'Operação cancelada';
+  if (cancelBtn) cancelBtn.style.display = 'none';
+
+  delete vaultTransferInicio[id];
+  delete vaultTransferXHR[id];
+
+  setTimeout(() => {
+    const el = document.getElementById(`vtransfer-${id}`);
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    setTimeout(() => {
+      el.remove();
+      if (vaultTransferList.children.length === 0) vaultTransferPanel.style.display = 'none';
+    }, 300);
+  }, 1500);
+}
+
+
 
 
 
@@ -1966,6 +2194,8 @@ function downloadFileVault(caminho_relativo, nomeOriginal) {
   const id = vaultCriarTransferencia(nomeOriginal || caminho_relativo, 'download');
 
   const xhr = new XMLHttpRequest();
+  vaultTransferXHR[id] = xhr;
+  if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
   xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, true);
   xhr.responseType = 'blob';
   xhr.withCredentials = true;
@@ -2019,34 +2249,14 @@ async function visualizarArquivoVault(caminho_relativo, nomeOriginal) {
       body: JSON.stringify({ caminho_arquivo: caminho_relativo })
     });
 
-    if (response.status === 401 || response.status === 403) {
-      sairModoVault();
-      return;
-    }
-
+    if (response.status === 401 || response.status === 403) { sairModoVault(); return; }
     if (!response.ok) throw new Error('Erro ao buscar arquivo do vault');
 
     const blob = await response.blob();
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const nome = (nomeOriginal || '').toLowerCase();
 
-    previewHeader.textContent = `${getIcon(nome)} ${formatarNomeArquivo(nomeOriginal)}`;
-    previewContent.innerHTML  = '';
-
-    if (nome.match(/\.(jpg|jpeg|png|gif|webp|ico)$/)) {
-      previewContent.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;border-radius:4px;">`;
-    } else if (nome.match(/\.(txt|json|js|html|css|md)$/)) {
-      const text = await blob.text();
-      previewContent.innerHTML = `<pre style="white-space:pre-wrap;font-family:var(--vault-mono);font-size:13px;color:var(--vault-text);line-height:1.6;">${text}</pre>`;
-    } else {
-      previewContent.innerHTML = `
-        <div style="color:var(--vault-text-dim);font-family:var(--vault-mono);font-size:12px;letter-spacing:2px;">
-          FORMATO NÃO SUPORTADO PARA VISUALIZAÇÃO
-        </div>`;
-    }
-
-    previewModal.style.opacity = '1';
-    previewModal.style.pointerEvents = 'all';
+    _abrirPreviewModal(url, blob, nome, nomeOriginal, caminho_relativo, true);
 
   } catch (err) {
     console.error(err);
@@ -2055,6 +2265,8 @@ async function visualizarArquivoVault(caminho_relativo, nomeOriginal) {
     finishProgress();
   }
 }
+
+
 
 
 // ── OVERRIDES: download e visualizar respeitam vault
@@ -2089,6 +2301,8 @@ function uploadFileVault() {
       const id = vaultCriarTransferencia(file.name, 'upload');
 
       const xhr = new XMLHttpRequest();
+      vaultTransferXHR[id] = xhr;
+      if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
       xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
       xhr.withCredentials = true;
       xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
@@ -2672,22 +2886,6 @@ contextMenu.addEventListener('touchend', (e) => {
 });
 
 
-// ── SWIPE DOWN FECHA PREVIEW ───────────────────
-const previewModalEl = document.getElementById('previewModal');
-let previewTouchStartY = 0;
-
-previewModalEl.addEventListener('touchstart', (e) => {
-  previewTouchStartY = e.touches[0].clientY;
-}, { passive: true });
-
-previewModalEl.addEventListener('touchend', (e) => {
-  const delta = e.changedTouches[0].clientY - previewTouchStartY;
-  if (delta > 80) {
-    previewModalEl.style.opacity = '0';
-    previewModalEl.style.pointerEvents = 'none';
-    previewContent.innerHTML = '';
-  }
-});
 
 
 // ── DOUBLE TAP PARA ABRIR PASTA NO MOBILE ──────
@@ -2715,6 +2913,280 @@ document.addEventListener('contextmenu', (e) => {
 
 
 
+
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════
+// DRAWER DE OPERAÇÕES — HISTÓRICO + ATIVAS
+// ══════════════════════════════════════════════════
+
+const _opAtivas    = {};   // id → {nome, tipo, isVault, percent, eta, bf, bt, xhr, vaultId}
+const _opHistorico = [];   // [{nome, tipo, isVault, status, bf, bt, ts}] — últimas 20
+const MAX_HISTORICO = 20;
+
+// ── BADGE ──────────────────────────────────────────
+function _opAtualizarBadge() {
+  const count = Object.keys(_opAtivas).length;
+  ['operacoesBadge', 'operacoesBadgeDrawer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.style.display = 'flex'; }
+    else { el.style.display = 'none'; }
+  });
+}
+
+// ── ABRIR/FECHAR DRAWER ────────────────────────────
+function abrirDrawerOperacoes() {
+  document.getElementById('operacoesDrawer').classList.add('open');
+  document.getElementById('operacoesBackdrop').classList.add('open');
+  _opRenderDrawer();
+}
+
+function fecharDrawerOperacoes() {
+  document.getElementById('operacoesDrawer').classList.remove('open');
+  document.getElementById('operacoesBackdrop').classList.remove('open');
+}
+
+document.getElementById('opDrawerClose').addEventListener('click', fecharDrawerOperacoes);
+document.getElementById('operacoesBackdrop').addEventListener('click', fecharDrawerOperacoes);
+
+// Swipe direita fecha no mobile
+let _opSwipeStartX = 0;
+document.getElementById('operacoesDrawer').addEventListener('touchstart', e => {
+  _opSwipeStartX = e.touches[0].clientX;
+}, { passive: true });
+document.getElementById('operacoesDrawer').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientX - _opSwipeStartX > 80) fecharDrawerOperacoes();
+});
+
+// ── CRIAR OPERAÇÃO ─────────────────────────────────
+function opCriar(id, nome, tipo, isVault, xhrRef) {
+  _opAtivas[id] = {
+    nome, tipo, isVault,
+    percent: 0, eta: '',
+    bf: 0, bt: 0,
+    xhrRef: xhrRef || null,
+    inicioMs: Date.now()
+  };
+  _opAtualizarBadge();
+  _opRenderDrawer();
+}
+
+// ── ATUALIZAR ──────────────────────────────────────
+function opAtualizar(id, percent, bf, bt, etaStr) {
+  const op = _opAtivas[id];
+  if (!op) return;
+  op.percent = percent;
+  op.bf = bf || 0;
+  op.bt = bt || 0;
+  op.eta = etaStr || '';
+
+  // atualização live — sem re-render total
+  const barEl = document.getElementById(`opd-bar-${id}`);
+  const pctEl = document.getElementById(`opd-pct-${id}`);
+  const etaEl = document.getElementById(`opd-eta-${id}`);
+  const metaEl = document.getElementById(`opd-meta-${id}`);
+
+  if (barEl) barEl.style.width = Math.round(percent) + '%';
+  if (pctEl) pctEl.textContent = Math.round(percent) + '%';
+  if (etaEl) etaEl.textContent = etaStr || '';
+  if (metaEl && bt > 0) {
+    metaEl.textContent = `${formatarTamanho(bf)} de ${formatarTamanho(bt)}${etaStr ? ' · ' + etaStr : ''}`;
+  }
+}
+
+// ── FINALIZAR ──────────────────────────────────────
+function opFinalizar(id, sucesso) {
+  const op = _opAtivas[id];
+  if (!op) return;
+
+  // adiciona ao histórico
+  _opHistorico.unshift({
+    nome: op.nome,
+    tipo: op.tipo,
+    isVault: op.isVault,
+    status: sucesso ? 'done' : 'error',
+    bf: op.bf,
+    bt: op.bt,
+    ts: Date.now()
+  });
+  if (_opHistorico.length > MAX_HISTORICO) _opHistorico.pop();
+
+  delete _opAtivas[id];
+  _opAtualizarBadge();
+
+  // atualiza card live se drawer aberto
+  const cardEl = document.getElementById(`opd-card-${id}`);
+  if (cardEl) {
+    const barEl = document.getElementById(`opd-bar-${id}`);
+    const pctEl = document.getElementById(`opd-pct-${id}`);
+    const etaEl = document.getElementById(`opd-eta-${id}`);
+
+    if (barEl) {
+      barEl.style.width = '100%';
+      barEl.className = `op-progress-fill ${sucesso ? 'done' : 'error'}`;
+    }
+    if (pctEl) {
+      pctEl.textContent = sucesso ? '✓' : '✕';
+      pctEl.className = `op-pct ${sucesso ? 'done' : 'error'}`;
+    }
+    if (etaEl) etaEl.textContent = '';
+
+    // move card para histórico após 1.5s
+    setTimeout(() => _opRenderDrawer(), 1500);
+  } else {
+    _opRenderDrawer();
+  }
+}
+
+// ── CANCELAR ───────────────────────────────────────
+function opCancelar(id) {
+  const op = _opAtivas[id];
+  if (!op) return;
+  if (op.xhrRef) op.xhrRef.abort();
+
+  _opHistorico.unshift({
+    nome: op.nome, tipo: op.tipo, isVault: op.isVault,
+    status: 'cancelled', bf: op.bf, bt: op.bt, ts: Date.now()
+  });
+  if (_opHistorico.length > MAX_HISTORICO) _opHistorico.pop();
+
+  delete _opAtivas[id];
+  _opAtualizarBadge();
+  _opRenderDrawer();
+}
+
+// ── RENDER COMPLETO DO DRAWER ──────────────────────
+function _opRenderDrawer() {
+  const ativas    = Object.entries(_opAtivas);
+  const historico = _opHistorico;
+
+  const secAtivas    = document.getElementById('opSectionAtivas');
+  const secHistorico = document.getElementById('opSectionHistorico');
+  const emptyEl      = document.getElementById('opEmpty');
+  const listAtivas   = document.getElementById('opListAtivas');
+  const listHistorico = document.getElementById('opListHistorico');
+
+  if (!secAtivas) return;
+
+  const temQualquerCoisa = ativas.length > 0 || historico.length > 0;
+
+  // empty state
+  emptyEl.className = temQualquerCoisa ? 'op-empty' : 'op-empty visible';
+
+  // seção ativas
+  secAtivas.style.display = ativas.length > 0 ? 'block' : 'none';
+  listAtivas.innerHTML = ativas.map(([id, op]) => _opCardAtiva(id, op)).join('');
+
+  // bind dos botões cancelar
+  ativas.forEach(([id, op]) => {
+    const btn = document.getElementById(`opd-cancel-${id}`);
+    if (btn) btn.onclick = () => {
+      if (op.isVault) cancelarVaultTransferencia(Number(id));
+      else cancelarTransferencia(Number(id));
+      opCancelar(id);
+    };
+  });
+
+  // seção histórico
+  if (historico.length > 0) {
+    secHistorico.style.display = 'block';
+    listHistorico.innerHTML = historico.map((h, i) => _opCardHistorico(h, i)).join('');
+
+    // botão limpar
+    if (!document.getElementById('opClearBtn')) {
+      const btn = document.createElement('button');
+      btn.id = 'opClearBtn';
+      btn.className = 'op-clear-btn';
+      btn.textContent = 'Limpar histórico';
+      btn.onclick = () => { _opHistorico.length = 0; _opRenderDrawer(); };
+      secHistorico.appendChild(btn);
+    }
+  } else {
+    secHistorico.style.display = 'none';
+  }
+}
+
+function _opIconClass(tipo, isVault) {
+  if (isVault) return 'vault-op';
+  return tipo; // 'upload' | 'download'
+}
+
+function _opIconLabel(tipo) {
+  return tipo === 'upload' ? '↑' : '↓';
+}
+
+function _opCardAtiva(id, op) {
+  const cls  = _opIconClass(op.tipo, op.isVault);
+  const pct  = Math.round(op.percent);
+  const meta = op.bt > 0
+    ? `${formatarTamanho(op.bf)} de ${formatarTamanho(op.bt)}${op.eta ? ' · ' + op.eta : ''}`
+    : (op.isVault ? op.tipo + ' · vault' : op.tipo);
+
+  return `
+    <div class="op-card" id="opd-card-${id}">
+      <div class="op-card-row">
+        <div class="op-card-icon ${cls}">${_opIconLabel(op.tipo)}</div>
+        <div class="op-card-text">
+          <div class="op-card-name">${op.nome}</div>
+          <div class="op-card-meta" id="opd-meta-${id}">${meta}</div>
+        </div>
+        <div class="op-card-right">
+          <span class="op-pct" id="opd-pct-${id}">${pct}%</span>
+          <button class="op-cancel-btn" id="opd-cancel-${id}" title="Cancelar">✕</button>
+        </div>
+      </div>
+      <div class="op-progress-wrap">
+        <div class="op-progress-bg">
+          <div class="op-progress-fill ${cls}" id="opd-bar-${id}" style="width:${pct}%"></div>
+        </div>
+        <span class="op-eta" id="opd-eta-${id}">${op.eta || ''}</span>
+      </div>
+    </div>`;
+}
+
+function _opCardHistorico(h, i) {
+  const cls     = _opIconClass(h.tipo, h.isVault);
+  const sizeStr = h.bt > 0 ? formatarTamanho(h.bt) : '';
+  const tsStr   = _opTempoRelativo(h.ts);
+  const meta    = [sizeStr, tsStr].filter(Boolean).join(' · ');
+
+  const chipLabel = h.status === 'done' ? 'Concluído'
+    : h.status === 'cancelled' ? 'Cancelado'
+    : 'Erro';
+
+  return `
+    <div class="op-card historico">
+      <div class="op-card-row">
+        <div class="op-card-icon ${cls}" style="opacity:0.6;">${_opIconLabel(h.tipo)}</div>
+        <div class="op-card-text">
+          <div class="op-card-name">${h.nome}</div>
+          <div class="op-card-meta">${meta}</div>
+        </div>
+        <div class="op-card-right">
+          <span class="op-status-chip ${h.status}">${chipLabel}</span>
+        </div>
+      </div>
+      <div class="op-progress-bg" style="margin-top:0;">
+        <div class="op-progress-fill ${h.status}" style="width:100%;transition:none;"></div>
+      </div>
+    </div>`;
+}
+
+function _opTempoRelativo(ts) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 5)  return 'agora';
+  if (s < 60) return `${s}s atrás`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}min atrás`;
+  return `${Math.floor(m / 60)}h atrás`;
+}
 
 
 
