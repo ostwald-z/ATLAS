@@ -1,4 +1,4 @@
-(async function checkAuth() {
+/*(async function checkAuth() {
   try {
     const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
@@ -19,3 +19,6 @@
     window.location.href = '../../painelDeLogin/login/index.html';
   }
 })();
+
+
+*/
