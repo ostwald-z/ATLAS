@@ -10,8 +10,8 @@ async function loginUser(req,res,next) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: "lax",
+            secure: false,    // true se for HTTPS // false se for http
+            sameSite: "lax",  //  none se estiver online e for o mesmo dominio // lax se for localhost gg
             maxAge: 3600000
         })
 
