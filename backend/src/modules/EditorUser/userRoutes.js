@@ -18,6 +18,10 @@ const roleMiddle = require("../../middlewares/roleMiddleware")
 //importando RATE LIMIT
 const {middlewareRate} = require("../../middlewares/rateLimitMiddleware")
 
+//importando middleware de LOGIN-INIT
+const {authMiddle_login_init} = require("../../middlewares/authMiddel_LOGIN_INIT")
+
+
 //importando validarBody
 const {validarBody} = require("../../middlewares/validarBody")
 
@@ -29,15 +33,25 @@ const {schemaUpdateUser} = require("./updateUser/schemaUpdateUser")
 //importando api-check
 const api_check_controller = require("./api-check/controller_api_check")
 
+//importando 2FA válidação
+const totp2fa_controller = require("./2FA-logica/controller-2fa-verify")
 
+//importando Controller CRIAR 2FA
+const criar2fa_controller = require("./criar-2fa-primeiro/controller.criar2fa")
 
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
 
 
+// GERA PRIMEIRO CÓDIGO DO USUARIO na vida
+userRota.post("/gerar-2fa", middlewareRate, authMiddle, roleMiddle(["user", "admin"]), criar2fa_controller.controller_criar2FA)
+
+
+// VERIFICA CODIGO DO 2FA DO USUARIO
+userRota.post("/check-2fa", middlewareRate, authMiddle_login_init, totp2fa_controller.controller_2fa_verify)
+
 
 //checa a API ver se existe, se é valida e etc.
 userRota.get("/apicheck", authMiddle, roleMiddle(["user", "admin"]), api_check_controller.check_api_controller)
-
 
 
 //criar usuario

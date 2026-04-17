@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATLAS Drive — Ativar 2FA</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Fundo animado -->
+  <div class="bg-grid"></div>
+
+  <!-- Header minimalista -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-mark">▲</span>
+      <span class="logo-text">ATLAS</span>
+    </div>
+    <button id="themeToggle" class="theme-btn" aria-label="Alternar tema">
+      <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <main class="main">
+
+    <!-- STEP 1: Aviso + botão gerar -->
+    <section id="step-warning" class="card step step--visible">
+
+      <div class="alert-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Ação necessária
+      </div>
+
+      <h1 class="card-title">Este é seu último acesso<br/>sem autenticação de dois fatores.</h1>
+
+      <p class="card-desc">
+        A partir do próximo login, o ATLAS Drive exigirá um código de verificação gerado pelo seu aplicativo autenticador.
+        Configure agora para não perder o acesso à sua conta.
+      </p>
+
+      <div class="info-row">
+        <div class="info-item">
+          <span class="info-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </span>
+          <span>Google Authenticator</span>
+        </div>
+        <div class="info-item">
+          <span class="info-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <span>Authy</span>
+        </div>
+        <div class="info-item">
+          <span class="info-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          <span>Qualquer app TOTP</span>
+        </div>
+      </div>
+
+      <button id="btnGerar" class="btn-primary">
+        <span id="btnGerarText">Gerar meu código 2FA</span>
+        <span id="btnGerarSpinner" class="spinner hidden"></span>
+        <svg id="btnGerarIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </button>
+
+      <p id="step-error" class="msg-error hidden"></p>
+
+    </section>
+
+    <!-- STEP 2: QR Code gerado -->
+    <section id="step-qr" class="card step step--hidden" style="display:none;">
+
+      <div class="success-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        2FA gerado com sucesso
+      </div>
+
+      <h2 class="card-title card-title--sm">Escaneie o QR code com<br/>seu aplicativo autenticador.</h2>
+
+      <p class="card-desc card-desc--sm">
+        Abra seu app, toque em <strong>adicionar conta</strong> e aponte a câmera para o código abaixo.
+      </p>
+
+      <div class="qr-frame">
+        <div class="qr-corner qr-corner--tl"></div>
+        <div class="qr-corner qr-corner--tr"></div>
+        <div class="qr-corner qr-corner--bl"></div>
+        <div class="qr-corner qr-corner--br"></div>
+        <img id="qrImage" class="qr-image" src="" alt="QR Code 2FA" />
+      </div>
+
+      <div class="final-notice">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>Código registrado. <strong>A partir do próximo login</strong>, este código será exigido para acessar sua conta.</span>
+      </div>
+
+      <button id="btnFechar" class="btn-secondary">
+        Entendido, fechar esta janela
+      </button>
+
+    </section>
+
+  </main>
+
+  <script src="../../config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

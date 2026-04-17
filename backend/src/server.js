@@ -27,11 +27,6 @@ server.use(cors({
 }))
 
 
-server.listen(process.env.PORT, '127.0.0.1', () => {
-    console.log("Server: ON na porta", process.env.PORT)
-})
-
-
 server.use(express.json())
 
 
@@ -72,7 +67,10 @@ encriptarAlog()
 
 
 
-
-
-
 server.use(erroMiddle)
+
+
+
+server.listen(process.env.PORT, '127.0.0.1', () => {
+    console.log("Server: ON na porta", process.env.PORT)
+})

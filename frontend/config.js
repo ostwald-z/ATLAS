@@ -5,3 +5,4 @@ window.CONFIG = {
 
 
 //   https://apiatlas.ostwald.top/
+//  http://localhost:8080

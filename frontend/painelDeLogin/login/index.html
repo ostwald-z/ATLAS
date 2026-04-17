@@ -1,54 +1,124 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATLAS • Secure Access</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATLAS • Secure Access</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<!-- SCANLINE SUAVE -->
-<div class="scanlines"></div>
+  <!-- FUNDO DECORATIVO -->
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-grid"></div>
+  </div>
 
-<!-- FUNDO ATLAS -->
-<div class="atlas-background">
-    <div class="atlas-bg-title">ATLAS</div>
-    <div class="atlas-bg-subtitle">Restricted Knowledge System</div>
-</div>
+  <!-- TOGGLE TEMA -->
+  <button class="theme-toggle" id="themeToggle" title="Alternar tema" type="button">
+    <span class="theme-toggle-icon"></span>
+  </button>
 
-<!-- SPECIAL LOGIN -->
-<button class="special-login" id="specialLogin" type="button">Special Login</button>
+  <!-- SPECIAL LOGIN -->
+  <button class="special-login" id="specialLogin" type="button">Special Login</button>
 
-<!-- LOGIN -->
-<div class="login-container">
+  <!-- CARD PRINCIPAL -->
+  <div class="login-wrapper">
 
-    <div class="login-header">
-        <h1>ATLAS</h1>
-        <p>Secure Authentication</p>
+    <!-- MARCA -->
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">ATLAS</span>
     </div>
 
-    <div class="login-box">
-        <input type="text" id="user" placeholder="Usuário">
-        <input type="password" id="senha" placeholder="Senha">
+    <!-- CARD -->
+    <div class="card" id="loginCard">
 
-        <div id="login-message"></div>
+      <!-- STEP 1: credenciais -->
+      <div class="step" id="step1">
+        <div class="card-header">
+          <h1 class="card-title">Bem-vindo de volta</h1>
+          <p class="card-subtitle">Acesso seguro ao sistema ATLAS</p>
+        </div>
 
-        <p id="erro"></p>
+        <div class="field-group">
+          <div class="field">
+            <label class="field-label" for="user">Usuário</label>
+            <input class="field-input" type="text" id="user" placeholder="seu.usuário" autocomplete="username">
+          </div>
 
-        <button class="login-button" id="login">LOGIN</button>
+          <div class="field">
+            <label class="field-label" for="senha">Senha</label>
+            <div class="field-password-wrap">
+              <input class="field-input" type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+              <button class="field-eye" id="toggleSenha" type="button" tabindex="-1">
+                <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="message" id="login-message"></div>
+        <p class="message-legacy" id="erro"></p>
+
+        <button class="btn-primary" id="login" type="button">
+          <span class="btn-label">Entrar</span>
+          <span class="btn-arrow">→</span>
+        </button>
+
+        <div class="card-footer">
+          <button class="link-btn" type="button" id="criaruser">Criar conta</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: 2FA -->
+      <div class="step step--hidden" id="step2">
+        <div class="card-header">
+          <div class="twofa-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <h1 class="card-title">Verificação em duas etapas</h1>
+          <p class="card-subtitle">Insira o código do seu aplicativo autenticador</p>
+        </div>
+
+        <!-- INPUTS 2FA em células -->
+        <div class="twofa-cells" id="twofaCells">
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="one-time-code">
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
+          <div class="twofa-sep"></div>
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
+          <input class="twofa-cell" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
+        </div>
+
+        <div class="message" id="twofa-message"></div>
+
+        <button class="btn-primary" id="btn2fa" type="button">
+          <span class="btn-label">Verificar</span>
+          <span class="btn-arrow">→</span>
+        </button>
+
+        <div class="card-footer">
+          <button class="link-btn" id="voltarLogin" type="button">← Voltar</button>
+        </div>
+      </div>
+
     </div>
 
-    <div class="login-actions">
-        <button class="create-user" type="button" id="criaruser">Criar usuário</button>
+    <!-- RODAPÉ DA PÁGINA -->
+    <div class="page-footer">
+      <span class="page-footer-dot"></span>
+      <span>Sistema privado · Acesso monitorado</span>
     </div>
 
-</div>
-<script src="../../config.js"></script>
-<script src="script.js"></script>
+  </div>
+
+  <script src="../../config.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
