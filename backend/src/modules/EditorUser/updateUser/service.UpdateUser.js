@@ -45,9 +45,9 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         }
 
         //verifica se ja existe ou nao o User
-
         const [verificaUser] = await repo.buscarUser(userLimpo)
-        if(verificaUser){
+
+        if(verificaUser && verificaUser.id !== idLimpo){
             throw new AppError("Usuário já existente", 409)
         }
 
@@ -66,7 +66,7 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
 
         //verifica se já existe email
         const [verificaEmail] = await repo.buscarEmail(emailLimpo)
-        if(verificaEmail){
+        if(verificaEmail && verificaEmail.id !== idLimpo){
             throw new AppError("Email já existente", 409)
         }
 
@@ -79,6 +79,9 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         //padroniza
         const senhaLimpa = senha.trim()
 
+
+        // ELE SÓ VERIFICA A SENHA, SE QUEM ESTÁ EDITANDO FOR USUÁRIO E NAO ADMIN
+        // ISSO DA LIBERDADE PARA O ADMIN ESCOLHER A SENHA QUE ELE QUISER - ELE SABE OQUE ESTÁ FAZENDO 
         if(roleToken !== "admin"){
             if(!validator.isStrongPassword(senhaLimpa)){
                 throw new AppError("Senha fraca: min 8 caracteres, 1 caixa alta, 1 caixa baixa,  1 número, 1 símbolo EX: (!@#$%&)")
@@ -94,6 +97,8 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         campos.push("obs = ?")
         valores.push(obs)
     }
+
+
 
     if(typeof roleEdit === "string" && roleEdit.trim().length > 0){
         //verifica se o cara tem PERMISSÃO para mudar o privilégio de alguém
@@ -116,6 +121,8 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         return resultado;
 
     }
+
+
 
     if(campos.length === 0){
         throw new AppError("Nenhum campo Válido para atualizar")
