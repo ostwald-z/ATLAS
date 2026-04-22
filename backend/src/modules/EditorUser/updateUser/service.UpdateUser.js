@@ -159,14 +159,19 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
 
     if(typeof nome_completo === "string" && nome_completo.trim().length > 0){
 
-
         //padronizo nome completo
         const nome_completo_limpo = nome_completo.trim()
 
+        if (nome_completo_limpo !== usuarioAntes.nome_completo) {
+            changes.push({
+                field: "nome_completo",
+                before: usuarioAntes.nome_completo,
+                after: nome_completo_limpo,
+            });
 
-
-        campos.push("nome_completo = ?")
-        valores.push(nome_completo_limpo)
+            campos.push("nome_completo = ?");
+            valores.push(nome_completo_limpo);
+        }
     }
 
 

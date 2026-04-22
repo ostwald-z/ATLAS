@@ -9,7 +9,10 @@ async function impersonateController(req,res,next) {
 
         const [user] = await repo.buscarID(id)
 
-        const token = await serivce.impersonate(id, chave)
+        const httpInfo = req.httpInfo
+
+
+        const token = await serivce.impersonate(id, chave, httpInfo)
 
         res.cookie("token", token, {
             httpOnly: true,

@@ -3,6 +3,8 @@ const service2fa = require("./service2fa-verify")
 const repo2fa = require("./repo-2fa-verify")
 
 
+const isProd = process.env.NODE_ENV === 'prod';
+
 async function controller_2fa_verify(req, res,  next) {
     try{
 
@@ -18,8 +20,10 @@ async function controller_2fa_verify(req, res,  next) {
         // COOKIE definitivo aceito pelo sistema
         res.cookie("token", token, {
             httpOnly: true,
-            secure: true,    // true se for HTTPS // false se for http
-            sameSite: "Lax",  //  none se estiver online e for o mesmo dominio // lax se for localhost gg
+            // Fica true apenas em produção (HTTPS)
+            secure: isProd, 
+            // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+            sameSite: 'lax', 
             maxAge: 3600000
         })
 

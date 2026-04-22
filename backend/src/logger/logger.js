@@ -17,7 +17,7 @@ function buildLogger(file, level) {
         return `,"utcBR":"${date}", "horario":"${br}" `
       }
     },
-    pino.destination(`./src/logger/${file}`)
+    pino.destination(`C:/atlas-logs/${file}`)
   );
 }
 module.exports = {buildLogger}

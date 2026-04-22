@@ -6,6 +6,7 @@ const middlewareRate = rateLimit({
   message: { erro: "Acesso bloqueado por segurança. Tente novamente em 30 min." },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // 🔥 AQUI
 });
 
 module.exports = {middlewareRate};

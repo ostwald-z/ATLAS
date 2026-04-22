@@ -2,23 +2,32 @@ const AppError = require("../../../error/AppError")
 const repo = require("./repo.deletarUser")
 
 
-async function deletarUser(id) {
+const logDeletarUser = require("./deletarLOGGER")
+
+async function deletarUser(id, httpInfo, id_autor) {
     
     const idLimpo = Number(id)
 
     if(isNaN(idLimpo)){
-        throw new AppError("ID Inválido, não é um número")
+        logDeletarUser.deletarLogger("falha", "ID inválido", httpInfo, id, id_autor)
+        throw new AppError("ID Inválido")
     }
 
     if(!Number.isInteger(idLimpo) || id <= 0){
-        throw new AppError("ID inválido, sei la po")
+        logDeletarUser.deletarLogger("falha", "ID inválido", httpInfo, id, id_autor)
+        throw new AppError("ID inválido")
     }
 
     const resultado = await repo.deletarUser(idLimpo)
     
     if(resultado.affectedRows === 0){
+        logDeletarUser.deletarLogger("falha", "ID não encontrado", httpInfo, id, id_autor)
         throw new AppError("ID colocado não foi encontrado")
     }
+
+    
+    logDeletarUser.deletarLogger("sucesso", "Deletou usuário corretamente.", httpInfo, id, id_autor)
+
 
     return resultado;
 }

@@ -4,6 +4,10 @@
 const service = require("./service.login")
 const repo = require("./repo.login")
 
+
+const isProd = process.env.NODE_ENV === 'prod';
+
+
 async function loginUser(req,res,next) {
     try{
 
@@ -18,9 +22,11 @@ async function loginUser(req,res,next) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: true,    // true se for HTTPS // false se for http
-            sameSite: "Lax",  //  Lax sempre, porque tanto em produção quanto testes o dominio é o mesmo.
-            maxAge: 3600000
+            // Fica true apenas em produção (HTTPS)
+            secure: isProd, 
+            // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+            sameSite: 'lax', 
+            maxAge: 3600000 // 1 hora
         })
 
         res.status(200).json({

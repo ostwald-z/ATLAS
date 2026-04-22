@@ -6,7 +6,11 @@ async function deletarUser(req,res,next) {
         
         const id = req.params.id
 
-        const resultado = await service.deletarUser(id)
+        const id_autor = req.user.id
+
+        const httpInfo = req.httpInfo
+
+        const resultado = await service.deletarUser(id, httpInfo, id_autor)
 
         res.status(200).json({
             message: "Usuário deletado com sucesso: " + id + " !!!",

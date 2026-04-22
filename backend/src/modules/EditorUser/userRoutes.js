@@ -43,7 +43,15 @@ const criar2fa_controller = require("./criar-2fa-primeiro/controller.criar2fa")
 const {httpInfoMiddleware} = require("../../middlewares/httpInfoGet/httpInfo")
 
 
+// importa controller de logout > expira cookie
+const logout_controller_user = require("./logout-user/controller.logout")
+
+
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
+
+
+//rota LOGOUT do usuário
+userRota.post("/logout", authMiddle, roleMiddle(["user", "admin"]), logout_controller_user.logout_controller_user)
 
 
 // GERA PRIMEIRO CÓDIGO DO USUARIO na vida
