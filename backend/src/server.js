@@ -12,7 +12,8 @@ const path = require('path');
 const {verificarAcessoAdmin} = require('./middlewares/verificarAcesso-antes-de-carregar');
 const {verificarAcessoUser} = require("./middlewares/verificarAcesso-antes-User")
 
-
+// middleware de HTTP pra pegar info
+const  {httpInfoMiddleware} = require("./middlewares/httpInfoGet/httpInfo")
 
 server.use(cookies())
 
@@ -28,14 +29,16 @@ server.use(cors({
 
 
 server.use(express.json())
-
+server.use(httpInfoMiddleware)
 
 
 server.use("/api", rotaGeral)
 
 
 // Rota protegida — backend verifica ANTES de servir
-server.get('/dashboard/admin', verificarAcessoAdmin, (req, res) => {
+
+
+/*server.get('/dashboard/admin', verificarAcessoAdmin, (req, res) => {
   res.sendFile(path.resolve(__dirname, '../../frontend/dashboard/admin/index.html'));
 });
 
@@ -49,6 +52,9 @@ server.get('/login', (req, res) => {
 });
 
 server.use('/login', express.static(path.join(__dirname, '../../frontend/painelDeLogin')));
+
+*/
+
 
 // --- FUNÇÃO PRA ENCRIPTAR ALGO RAPIDÃO, pra colocar no .env e poder usar o bcrypt
 
