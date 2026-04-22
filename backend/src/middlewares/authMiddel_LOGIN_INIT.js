@@ -14,8 +14,9 @@ function authMiddle_login_init(req,res,next){
   
             
             if(!token){
-                throw new AppError("Não Autenticado", 401)
+                throw new AppError("Não Autenticado | Reinicie o Login novamente para pode verificar o código 2FA.", 401)
             }
+
 
             const payload = jwt.verify(token, process.env.JWT_SECRET_LOGIN_INIT);
             req.user = payload;
