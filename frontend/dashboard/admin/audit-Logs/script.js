@@ -46,9 +46,17 @@ const state = {
   arquivoAtual:   null,     // nome do arquivo selecionado
   tipoAtual:      null,     // 'auth' | 'create' | 'delete' | 'update'
   logsOriginais:  [],       // todos os logs parseados do arquivo atual
+  logSelecionadoId: null,   // log em foco para investigação
   filtroTexto:    '',
   filtroStatus:   'all',    // 'all' | 'sucesso' | 'falha'
   ordemDesc:      true,
+  quickSearch: {
+    usuario: '',
+    ip: '',
+    regiao: '',
+    local: '',
+    região: '',
+  },
 };
 
 // ── Mapeamento arquivo → tipo ──────────────────
@@ -76,6 +84,7 @@ async function selecionarArquivo(file, tipo, btnEl) {
 
   state.arquivoAtual = file;
   state.tipoAtual    = tipo;
+  state.logSelecionadoId = null;
 
   await carregarLogs(file, tipo);
 }
@@ -148,6 +157,11 @@ function parsearLogs(texto) {
 // ── Filtros ────────────────────────────────────
 const filterInput = document.getElementById('filterText');
 const filterClear = document.getElementById('filterClear');
+const quickSearchBar = document.getElementById('quickSearchBar');
+const quickFilterUser = document.getElementById('quickFilterUser');
+const quickFilterIp = document.getElementById('quickFilterIp');
+const quickFilterRegion = document.getElementById('quickFilterRegion');
+const quickFilterClear = document.getElementById('quickFilterClear');
 
 filterInput.addEventListener('input', () => {
   state.filtroTexto = filterInput.value.trim().toLowerCase();
@@ -159,6 +173,14 @@ filterClear.addEventListener('click', () => {
   filterInput.value = '';
   state.filtroTexto = '';
   filterClear.classList.add('hidden');
+  renderizarLogs();
+});
+
+quickFilterClear.addEventListener('click', () => {
+  state.quickSearch.usuario = '';
+  state.quickSearch.ip = '';
+  state.quickSearch.regiao = '';
+  renderQuickSearchUI();
   renderizarLogs();
 });
 
@@ -228,8 +250,33 @@ function renderizarLogs() {
     });
   }
 
+  // QuickSearch por IP e Regiao (podem combinar entre si)
+  if (state.quickSearch.usuario) {
+    logs = logs.filter(log => {
+      const usuario = getLogUsuario(log, state.tipoAtual).toLowerCase();
+      return usuario === state.quickSearch.usuario;
+    });
+  }
+  if (state.quickSearch.ip) {
+    logs = logs.filter(log => {
+      const ip = getLogIp(log, state.tipoAtual).toLowerCase();
+      return ip === state.quickSearch.ip;
+    });
+  }
+  if (state.quickSearch.regiao) {
+    logs = logs.filter(log => {
+      const regiao = getLogRegiao(log, state.tipoAtual).toLowerCase();
+      return regiao === state.quickSearch.regiao;
+    });
+  }
+
   // Atualiza estatísticas
   atualizarStats(logs);
+
+  const idsVisiveis = new Set(logs.map(log => getLogId(log, state.tipoAtual)));
+  if (state.logSelecionadoId && !idsVisiveis.has(state.logSelecionadoId)) {
+    state.logSelecionadoId = null;
+  }
 
   if (logs.length === 0) {
     const empty = document.createElement('div');
@@ -270,30 +317,40 @@ function criarCardLog(log, index, tipo, termoBusca) {
   const card = document.createElement('div');
   card.className = 'log-card';
   card.style.setProperty('--i', Math.min(index, 20));
+  const logId = getLogId(log, tipo);
+  const quickTerms = getQuickSearchTerms();
+  const highlightTerms = getHighlightTerms(termoBusca, quickTerms);
+  const isSelected = state.logSelecionadoId === logId;
 
   const status  = (log.status || '').toLowerCase();
   const dotClass = status === 'sucesso' ? 'success' : status === 'falha' ? 'fail' : 'unknown';
-  const hasMatch = termoBusca && JSON.stringify(log).toLowerCase().includes(termoBusca);
+  const hasMatch = highlightTerms.length > 0 && highlightTerms.some(termo =>
+    JSON.stringify(log).toLowerCase().includes(termo)
+  );
   if (hasMatch) card.classList.add('has-match');
+  if (isSelected) card.classList.add('selected');
+  if (state.logSelecionadoId && !isSelected) card.classList.add('dimmed');
 
   // Texto de resumo contextual por tipo
   const resumo = getResumoPrimario(log, tipo);
   const subInfo = getSubInfo(log, tipo);
+  const quickBadgeHtml = getQuickBadgeHtml(log, tipo, quickTerms);
 
   card.innerHTML = `
     <div class="log-card-top">
       <span class="log-type-pill log-type-pill--${tipo}">${getTipoLabel(tipo)}</span>
       <span class="log-status-dot log-status-dot--${dotClass}"></span>
       <div class="log-summary">
-        <span class="log-detail-text">${highlight(resumo, termoBusca)}</span>
-        ${subInfo ? `<span class="log-user-chip">${highlight(subInfo, termoBusca)}</span>` : ''}
+        <span class="log-detail-text">${highlightByTerms(resumo, highlightTerms)}</span>
+        ${subInfo ? `<span class="log-user-chip">${highlightByTerms(subInfo, highlightTerms)}</span>` : ''}
+        ${quickBadgeHtml}
       </div>
       <span class="log-time">${formatarHorario(log.horario || log.utcBR)}</span>
       <svg class="log-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="log-card-body">
       <div class="log-card-inner">
-        ${renderizarCampos(log, tipo, termoBusca)}
+        ${renderizarCampos(log, tipo, highlightTerms, quickTerms)}
         ${renderizarChanges(log)}
         <button class="log-raw-toggle" onclick="toggleRaw(this)">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -306,26 +363,93 @@ function criarCardLog(log, index, tipo, termoBusca) {
 
   // Toggle expand
   card.querySelector('.log-card-top').addEventListener('click', () => {
+    const jaSelecionado = state.logSelecionadoId === logId;
+    const jaExpandido = card.classList.contains('expanded');
+
+    if (jaSelecionado && jaExpandido) {
+      limparFocoLogs();
+      return;
+    }
+
+    state.logSelecionadoId = logId;
+    atualizarSelecaoVisualLog(card, logId);
+
+    const body = card.querySelector('.log-card-body');
+    const shouldExpand = true;
+    const area = card.parentElement;
+
+    area?.querySelectorAll('.log-card.expanded').forEach(otherCard => {
+      if (otherCard === card) return;
+      otherCard.classList.remove('expanded');
+      const otherBody = otherCard.querySelector('.log-card-body');
+      if (otherBody) otherBody.style.maxHeight = '0px';
+    });
+
     card.classList.toggle('expanded');
+    body.style.maxHeight = shouldExpand ? `${body.scrollHeight}px` : '0px';
+  });
+
+  card.querySelectorAll('.quick-search-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+
+      const tipoFiltro = trigger.dataset.quickType;
+      const valor = (trigger.dataset.quickValue || '').trim().toLowerCase();
+      if (!valor) return;
+
+      if (tipoFiltro === 'ip') {
+        state.quickSearch.ip = state.quickSearch.ip === valor ? '' : valor;
+      }
+      if (tipoFiltro === 'regiao') {
+        state.quickSearch.regiao = state.quickSearch.regiao === valor ? '' : valor;
+      }
+      if (tipoFiltro === 'usuario') {
+        state.quickSearch.usuario = state.quickSearch.usuario === valor ? '' : valor;
+      }
+
+      renderQuickSearchUI();
+      renderizarLogs();
+    });
   });
 
   return card;
 }
 
 // ── Renderizar campos formatados ───────────────
-function renderizarCampos(log, tipo, termo) {
+function renderizarCampos(log, tipo, termosHighlight, quickTerms) {
   const campos = [];
+  const localFormatado = formatarLocalizacao(log, tipo);
 
   const add = (key, label, val) => {
     if (val === undefined || val === null || val === '') return;
     const valStr = String(val);
-    const valHtml = termo && valStr.toLowerCase().includes(termo)
-      ? `<span class="log-field-val highlight">${highlight(valStr, termo)}</span>`
-      : `<span class="log-field-val">${escHtml(valStr)}</span>`;
+    const quickType = getQuickTypeByField(key);
+    const quickValue = valStr.trim().toLowerCase();
+    const quickAtivo = quickType && state.quickSearch[quickType] === quickValue;
+    const valLower = valStr.toLowerCase();
+    const temHighlight = termosHighlight.some(termo => valLower.includes(termo));
+    const quickHit = quickTerms.some(termo => valLower.includes(termo));
+    const classes = ['log-field-val'];
+    if (temHighlight) classes.push('highlight');
+    if (quickHit) classes.push('quick-hit');
+    const valHtml = `<span class="${classes.join(' ')}">${highlightByTerms(valStr, termosHighlight)}</span>`;
+
+    const quickBtn = quickType
+      ? `
+        <button class="quick-search-trigger ${quickAtivo ? 'active' : ''}" data-quick-type="${quickType}" data-quick-value="${escHtml(quickValue)}" title="QuickSearch por ${getQuickTypeLabel(quickType)}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      `
+      : '';
+
     campos.push(`
       <div class="log-field">
         <span class="log-field-key">${label}</span>
-        ${valHtml}
+        <div class="log-field-val-row">
+          ${valHtml}
+          ${quickBtn}
+        </div>
       </div>
     `);
   };
@@ -340,7 +464,7 @@ function renderizarCampos(log, tipo, termo) {
     add('userId',   'User ID',  log.userId);
     add('email',    'E-mail',   log.email);
     add('ip',       'IP',       log.ip);
-    add('location', 'Local',    log.location);
+    add('location', 'LOCAL',    localFormatado);
   }
 
   if (tipo === 'create') {
@@ -350,12 +474,14 @@ function renderizarCampos(log, tipo, termo) {
     add('obs',           'Obs',        log.obs);
     add('chaveCriar',    'ChaveCriar', log.chaveCriar);
     add('ip',            'IP',         log.ip);
+    add('location',      'LOCAL',      localFormatado);
   }
 
   if (tipo === 'delete') {
     add('idAlvo', 'ID Alvo', log.idAlvo);
     add('Autor',  'Autor ID', log.Autor);
     add('ip',     'IP',       log.ip);
+    add('location', 'LOCAL',  localFormatado);
   }
 
   if (tipo === 'update') {
@@ -363,12 +489,13 @@ function renderizarCampos(log, tipo, termo) {
     add('target.id', 'Target ID', log.target?.id);
     const ip = log.context?.ip;
     if (ip) add('ip', 'IP', ip);
+    add('location', 'LOCAL', localFormatado);
   }
 
   if (tipo === 'impersonate') {
     add('idAlvo',   'ID Alvo',   log.idAlvo);
     add('ip',       'IP',        log.ip);
-    add('location', 'Local',     log.location);
+    add('location', 'LOCAL',     localFormatado);
   }
 
   // User agent (todos)
@@ -406,6 +533,12 @@ function toggleRaw(btn) {
   btn.childNodes[2].textContent = pre.classList.contains('visible')
     ? ' Ocultar JSON'
     : ' Ver JSON bruto';
+
+  const card = btn.closest('.log-card');
+  const body = card?.querySelector('.log-card-body');
+  if (card && body && card.classList.contains('expanded')) {
+    body.style.maxHeight = `${body.scrollHeight}px`;
+  }
 }
 
 // ── Helpers de conteúdo ────────────────────────
@@ -459,6 +592,19 @@ function highlight(texto, termo) {
   return escaped.replace(regex, '<mark class="atlas-mark">$1</mark>');
 }
 
+function highlightByTerms(texto, termos = []) {
+  if (texto === undefined || texto === null) return '';
+  let html = escHtml(String(texto));
+  const ordenados = [...new Set((termos || []).map(t => String(t).trim()).filter(Boolean))]
+    .sort((a, b) => b.length - a.length);
+  for (const termo of ordenados) {
+    const escaped = escHtml(termo);
+    const regex = new RegExp(`(${escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    html = html.replace(regex, '<mark class="atlas-mark">$1</mark>');
+  }
+  return html;
+}
+
 function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -466,6 +612,223 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+function getQuickTypeByField(field) {
+  const normalizado = String(field || '').toLowerCase();
+  if (normalizado === 'user' || normalizado === 'useruser' || normalizado === 'autor' || normalizado === 'actor.id') {
+    return 'usuario';
+  }
+  if (normalizado === 'ip') return 'ip';
+  if (normalizado === 'location' || normalizado === 'local' || normalizado === 'regiao' || normalizado === 'região') {
+    return 'regiao';
+  }
+  return null;
+}
+
+function getQuickTypeLabel(tipo) {
+  if (tipo === 'usuario') return 'usuário';
+  if (tipo === 'ip') return 'IP';
+  if (tipo === 'regiao') return 'região';
+  return tipo;
+}
+
+function getLogIp(log, tipo) {
+  if (tipo === 'update') return String(log.context?.ip || '');
+  return String(log.ip || '');
+}
+
+function getLogRegiao(log, tipo) {
+  return formatarLocalizacao(log, tipo).toLowerCase();
+}
+
+function formatarLocalizacao(log, tipo) {
+  const locationRaw = tipo === 'update'
+    ? (log.context?.location ?? log.location ?? log.local ?? log.regiao ?? log.região)
+    : (log.location ?? log.local ?? log.regiao ?? log.região);
+
+  if (!locationRaw) return '';
+
+  if (typeof locationRaw === 'string') {
+    return locationRaw;
+  }
+
+  if (typeof locationRaw === 'object') {
+    const pais = expandirNomePais(locationRaw.country || locationRaw.pais);
+    const estado = expandirNomeEstadoBR(locationRaw.region || locationRaw.estado);
+    const cidade = locationRaw.city || locationRaw.cidade;
+    const partes = [pais, estado, cidade]
+      .map(valor => String(valor || '').trim())
+      .filter(Boolean);
+
+    if (partes.length) {
+      return partes.join(', ');
+    }
+  }
+
+  return String(locationRaw);
+}
+
+function expandirNomePais(valor) {
+  const codigo = String(valor || '').trim().toUpperCase();
+  if (!codigo) return '';
+
+  const PAISES = {
+    BR: 'Brasil',
+    US: 'Estados Unidos',
+    AR: 'Argentina',
+    UY: 'Uruguai',
+    PY: 'Paraguai',
+    CL: 'Chile',
+    BO: 'Bolivia',
+    PE: 'Peru',
+    CO: 'Colombia',
+    VE: 'Venezuela',
+    EC: 'Equador',
+    MX: 'Mexico',
+    PT: 'Portugal',
+    ES: 'Espanha',
+    FR: 'Franca',
+    DE: 'Alemanha',
+    IT: 'Italia',
+    GB: 'Reino Unido',
+    CA: 'Canada',
+    AU: 'Australia',
+    JP: 'Japao',
+    CN: 'China',
+    IN: 'India',
+  };
+
+  return PAISES[codigo] || String(valor).trim();
+}
+
+function expandirNomeEstadoBR(valor) {
+  const uf = String(valor || '').trim().toUpperCase();
+  if (!uf) return '';
+
+  const ESTADOS_BR = {
+    AC: 'Acre',
+    AL: 'Alagoas',
+    AP: 'Amapa',
+    AM: 'Amazonas',
+    BA: 'Bahia',
+    CE: 'Ceara',
+    DF: 'Distrito Federal',
+    ES: 'Espirito Santo',
+    GO: 'Goias',
+    MA: 'Maranhao',
+    MT: 'Mato Grosso',
+    MS: 'Mato Grosso do Sul',
+    MG: 'Minas Gerais',
+    PA: 'Para',
+    PB: 'Paraiba',
+    PR: 'Parana',
+    PE: 'Pernambuco',
+    PI: 'Piaui',
+    RJ: 'Rio de Janeiro',
+    RN: 'Rio Grande do Norte',
+    RS: 'Rio Grande do Sul',
+    RO: 'Rondonia',
+    RR: 'Roraima',
+    SC: 'Santa Catarina',
+    SP: 'Sao Paulo',
+    SE: 'Sergipe',
+    TO: 'Tocantins',
+  };
+
+  return ESTADOS_BR[uf] || String(valor).trim();
+}
+
+function getLogUsuario(log, tipo) {
+  if (tipo === 'auth') return String(log.userUser || '');
+  if (tipo === 'create') return String(log.user || '');
+  if (tipo === 'delete') return String(log.Autor || '');
+  if (tipo === 'update') return String(log.actor?.id || '');
+  if (tipo === 'impersonate') return String(log.Autor || log.actor?.id || '');
+  return '';
+}
+
+function getLogId(log, tipo) {
+  const horario = String(log.horario || log.utcBR || '');
+  const status = String(log.status || '');
+  const resumo = String(getResumoPrimario(log, tipo) || '');
+  const json = JSON.stringify(log);
+  return `${horario}|${status}|${resumo}|${json}`;
+}
+
+function getQuickSearchTerms() {
+  return [state.quickSearch.usuario, state.quickSearch.ip, state.quickSearch.regiao]
+    .map(v => String(v || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function getHighlightTerms(termoBusca, quickTerms) {
+  const termos = [];
+  if (termoBusca) termos.push(String(termoBusca).trim().toLowerCase());
+  termos.push(...quickTerms);
+  return [...new Set(termos.filter(Boolean))];
+}
+
+function getQuickBadgeHtml(log, tipo, quickTerms) {
+  if (!quickTerms.length) return '';
+  const ip = getLogIp(log, tipo).toLowerCase();
+  const regiao = getLogRegiao(log, tipo).toLowerCase();
+  const usuario = getLogUsuario(log, tipo).toLowerCase();
+  const bateUsuario = !!usuario && quickTerms.includes(usuario);
+  const bateIp = !!ip && quickTerms.includes(ip);
+  const bateRegiao = !!regiao && quickTerms.includes(regiao);
+  if (!bateUsuario && !bateIp && !bateRegiao) return '';
+
+  const badges = [];
+  if (bateUsuario) badges.push('<span class="log-match-badge">match usuario</span>');
+  if (bateIp) badges.push('<span class="log-match-badge">match IP</span>');
+  if (bateRegiao) badges.push('<span class="log-match-badge">match regiao</span>');
+  return badges.join('');
+}
+
+function atualizarSelecaoVisualLog(cardAtual, logId) {
+  const area = cardAtual.parentElement;
+  if (!area) return;
+
+  area.querySelectorAll('.log-card').forEach(card => {
+    const isSelected = card === cardAtual;
+    card.classList.toggle('selected', isSelected);
+    card.classList.toggle('dimmed', !isSelected && !!logId);
+  });
+}
+
+function renderQuickSearchUI() {
+  const usuarioAtivo = !!state.quickSearch.usuario;
+  const ipAtivo = !!state.quickSearch.ip;
+  const regiaoAtiva = !!state.quickSearch.regiao;
+  const hasAny = usuarioAtivo || ipAtivo || regiaoAtiva;
+
+  quickSearchBar.classList.toggle('hidden', !hasAny);
+
+  quickFilterUser.classList.toggle('hidden', !usuarioAtivo);
+  quickFilterIp.classList.toggle('hidden', !ipAtivo);
+  quickFilterRegion.classList.toggle('hidden', !regiaoAtiva);
+
+  quickFilterUser.textContent = usuarioAtivo ? `Usuario: ${state.quickSearch.usuario}` : '';
+  quickFilterIp.textContent = ipAtivo ? `IP: ${state.quickSearch.ip}` : '';
+  quickFilterRegion.textContent = regiaoAtiva ? `Regiao: ${state.quickSearch.regiao}` : '';
+}
+
+function limparFocoLogs() {
+  state.logSelecionadoId = null;
+  document.querySelectorAll('.log-card.selected, .log-card.dimmed, .log-card.expanded').forEach(card => {
+    card.classList.remove('selected', 'dimmed', 'expanded');
+    const body = card.querySelector('.log-card-body');
+    if (body) body.style.maxHeight = '0px';
+  });
+}
+
+document.addEventListener('click', (ev) => {
+  const clickedInsideCard = ev.target.closest('.log-card');
+  if (clickedInsideCard) return;
+  limparFocoLogs();
+});
+
+renderQuickSearchUI();
 
 // ── Estado vazio / erro ────────────────────────
 function mostrarErroLogs(msg) {
