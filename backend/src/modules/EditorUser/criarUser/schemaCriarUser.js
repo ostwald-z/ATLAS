@@ -2,6 +2,7 @@ const {z} = require("zod")
 
 const schemaCriarUser = z.object({
 
+    nome_completo: z.string(),
     user: z.string(),
     email: z.string(),
     senha: z.string(),

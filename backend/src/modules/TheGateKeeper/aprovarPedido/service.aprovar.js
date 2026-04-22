@@ -24,6 +24,7 @@ async function aprovarForm(id) {
     const senha_hash = resultado.senha_hash
     const obs = resultado.obs
     const role = resultado.role
+    const nome_completo = resultado.nome_completo
 
     const [verificaUser] = await repo.buscarUser(user)
     if(verificaUser){
@@ -36,7 +37,7 @@ async function aprovarForm(id) {
     }
 
 
-    const criarUser = await repo.aprovarForm(user,senha_hash,email,obs,role)
+    const criarUser = await repo.aprovarForm(user,senha_hash,email,obs,role, nome_completo)
 
     //deletar este form que já foi APROVADO, liberar espaço do banco de dados de usuarios pendentes
     const deletarForm = await repo.deletarForm(idLimpo)

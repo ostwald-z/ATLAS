@@ -6,9 +6,15 @@ const jwt = require("jsonwebtoken")
 const totp2fa = require("../2FA-logica/2falogica")
 
 
+// pega o necessário para LOGS
+const logLoginAttempt = require("./authLOGGER")
+
+const sendLoginAlertEmail = require("../email-LOGICA/emailService")
 
 
-async function loginUser(user,senha) {
+
+
+async function loginUser(user,senha, httpInfo) {
     
     if(typeof user !== "string" || user.trim().length === 0){
         throw new AppError("User ou Senha Inválidos")
@@ -24,14 +30,22 @@ async function loginUser(user,senha) {
 
     const [usuario] = await repo.buscarUser(user)
     if(!usuario){
+        logLoginAttempt.logLoginAttempt(usuario, httpInfo, "falha", "usuário errado")
         throw new AppError("Usuario ou Senha inválidos")
     }
 
     //valida senha
     const validacao = await bcrypt.compare(senha, usuario.senha_hash)
     if(!validacao){
+        logLoginAttempt.logLoginAttempt(usuario, httpInfo, "falha", "senha errada")
         throw new AppError("Usuario ou Senha inválidos")
     }
+
+
+    // nesse ponto ele já sabe user e senha - envia notificação para o email do usuario alertando sobre.
+    logLoginAttempt.logLoginAttempt(usuario, httpInfo, "sucesso", "User e Senha corretos.")
+    await sendLoginAlertEmail.sendLoginAlertEmail(usuario, httpInfo)
+
 
 
     // verifica se ele tem 2FA ativado
@@ -39,7 +53,6 @@ async function loginUser(user,senha) {
     // se ele não tiver configurado ainda, VALIDA O COOKIE E ENTREGA TOKEN
     // mas com uma mensagem que ele nao tem TOPT, frontend recebe e abre uma pagina pedindo para adicionar 2FA 
     // nesse  frontend faz requisição para GERAR 2fa
-
     if(usuario.totp !== "1"){
         const totpStatus = "falsetotp"
 
@@ -60,7 +73,7 @@ async function loginUser(user,senha) {
     const token = jwt.sign(
         {id:usuario.id, role:usuario.role},
         process.env.JWT_SECRET_LOGIN_INIT,
-        {expiresIn: process.env.JWT_EXPIRES})
+        {expiresIn: process.env.JWT_SECRET_LOGIN_INIT_EXPIRES})
 
 
     return {token, totpStatus}

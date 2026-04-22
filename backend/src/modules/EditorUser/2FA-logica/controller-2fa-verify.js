@@ -14,6 +14,8 @@ async function controller_2fa_verify(req, res,  next) {
 
         const [usuario] = await repo2fa.buscarUser(id_user)
 
+
+        // COOKIE definitivo aceito pelo sistema
         res.cookie("token", token, {
             httpOnly: true,
             secure: true,    // true se for HTTPS // false se for http

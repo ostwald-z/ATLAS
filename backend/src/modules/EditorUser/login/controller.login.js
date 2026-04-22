@@ -9,8 +9,11 @@ async function loginUser(req,res,next) {
 
         const {user, senha} = req.body
 
-        const {token, totpStatus} = await service.loginUser(user,senha)
+        const httpInfo = req.httpInfo
 
+        const {token, totpStatus} = await service.loginUser(user, senha, httpInfo)
+
+        
         const [usuario] = await repo.buscarUser(user)
 
         res.cookie("token", token, {

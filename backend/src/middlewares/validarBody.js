@@ -9,6 +9,7 @@ function validarBody(schema){
             next()
 
         }catch(erro){
+            console.log(req.body)
             throw new AppError("Body Inválido")
         }
     }

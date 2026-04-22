@@ -183,3 +183,30 @@ textarea.atlas-input { resize: vertical; min-height: 80px; }
   .form-actions { flex-direction: column-reverse; gap: 12px; }
   .btn-primary, .btn-danger { width: 100%; }
 }
+
+
+
+/* 1. Remove a barra de rolagem visualmente, mas mantém a função (Melhor UX) */
+#editModal .modal-card {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    max-height: 95vh; /* Evita que o modal encoste no topo/fundo */
+    overflow-y: auto;
+}
+
+#editModal .modal-card::-webkit-scrollbar {
+    display: none; /* Chrome, Safari e Opera */
+}
+
+/* 2. Ajuste fino de espaçamento para "espremer" o novo campo sem quebrar */
+#editForm .form-group {
+    margin-bottom: 12px; /* Diminui levemente o respiro entre campos */
+}
+
+#editForm .form-row {
+    gap: 10px; /* Encurta a distância horizontal entre os campos 2x2 */
+}
+
+.modal-card {
+    padding: 20px; /* Ajusta o preenchimento interno do modal */
+}

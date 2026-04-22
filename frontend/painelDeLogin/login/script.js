@@ -1,3 +1,32 @@
+(async function checkAuthRedirectLogin() {
+  try {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      // Token inválido ou não existe -> redireciona
+      return;
+    }
+
+    const data = await res.json();
+    console.log('Usuário autenticado:', data.user);
+
+    if(data.role_user === "admin"){
+      window.location.href = '../../dashboard/admin/index.html';
+    }else{
+      window.location.href = '../../dashboard/user/indexUser.html';
+    }
+
+  } catch (err) {
+    console.error('Erro na verificação de token:', err);
+  }
+})();
+
+
+
+
 // ══════════════════════════════════════════
 // TEMA
 // ══════════════════════════════════════════

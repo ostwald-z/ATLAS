@@ -6,7 +6,8 @@ const schemaUpdateUser = z.object({
     senha: z.string(),
     email: z.string(),
     obs: z.string(),
-    roleEdit: z.string()
+    roleEdit: z.string(),
+    nome_completo: z.string()
 
 })
 

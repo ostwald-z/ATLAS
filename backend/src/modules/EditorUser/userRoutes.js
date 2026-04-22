@@ -39,6 +39,10 @@ const totp2fa_controller = require("./2FA-logica/controller-2fa-verify")
 //importando Controller CRIAR 2FA
 const criar2fa_controller = require("./criar-2fa-primeiro/controller.criar2fa")
 
+//importa MIDDLEWARE para pegar DADOS HTTP da requisição, com geo etc
+const {httpInfoMiddleware} = require("../../middlewares/httpInfoGet/httpInfo")
+
+
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
 
 
@@ -55,11 +59,11 @@ userRota.get("/apicheck", authMiddle, roleMiddle(["user", "admin"]), api_check_c
 
 
 //criar usuario
-userRota.post("/", middlewareRate, validarBody(schemaCriarUser),controllerCriar.criarUser)
+userRota.post("/", httpInfoMiddleware, middlewareRate, validarBody(schemaCriarUser),controllerCriar.criarUser)
 
 
 //login do usuario
-userRota.post("/login", middlewareRate, validarBody(schemaLoginUser),controllerLogin.loginUser)
+userRota.post("/login", httpInfoMiddleware, middlewareRate, validarBody(schemaLoginUser),controllerLogin.loginUser)
 
 
 //listar todos os usuarios
@@ -70,12 +74,13 @@ userRota.get("/", authMiddle, roleMiddle("admin") ,controllerListarTodos.listarT
 userRota.get("/:id", authMiddle, roleMiddle("admin"),controllerListarUser.listarUser)
 
 
+
 //atualizar usuario
-userRota.patch("/:id", authMiddle, roleMiddle(["admin", "user"]),validarBody(schemaUpdateUser),controllerUpdateUser.updateUser)
+userRota.patch("/:id", httpInfoMiddleware, authMiddle, roleMiddle(["admin", "user"]),validarBody(schemaUpdateUser),controllerUpdateUser.updateUser)
 
 
 //deletar usuario
-userRota.delete("/:id", authMiddle, roleMiddle("admin") ,controllerDeletar.deletarUser)
+userRota.delete("/:id", httpInfoMiddleware, authMiddle, roleMiddle("admin") ,controllerDeletar.deletarUser)
 
 
 

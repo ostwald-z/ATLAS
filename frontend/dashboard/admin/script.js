@@ -1,4 +1,4 @@
-/*(async function checkAuth() {
+(async function checkAuth() {
   try {
     const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
@@ -11,7 +11,13 @@
       return;
     }
 
+
     const data = await res.json();
+
+    if(data.role_user !== "admin"){
+      window.location.href = '../user/indexUser.html';
+    }
+
     console.log('Usuário autenticado:', data.user);
 
   } catch (err) {
@@ -21,7 +27,7 @@
 })();
 
 
-*/
+
 
 
 
@@ -74,7 +80,7 @@ profileDropdown.addEventListener('click', (e) => e.stopPropagation());
 // ══════════════════════════════════════════
 async function loadUserInfo() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/me`, {
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -82,7 +88,7 @@ async function loadUserInfo() {
     if (!res.ok) throw new Error('Não autorizado');
 
     const data = await res.json();
-    const id = data.id || data.userId || data._id || '—';
+    const id = data.user || data.userId || data._id || '—';
 
     // avatar: primeiros 2 chars do ID em maiúsculo
     const initials = String(id).slice(0, 2).toUpperCase();
@@ -110,5 +116,5 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
     });
   } catch { /* ignora erro de rede */ }
 
-  window.location.href = '../../login/index.html';
+  window.location.href = '../../painelDelogin/login/index.html';
 });

@@ -2,9 +2,9 @@ const sql = require("../../../config/DB")
 
 
 
-async function aprovarForm(user, senha, email, obs, role) {
-    const comandosql = "INSERT INTO usuarios (user,email,senha_hash,obs,role) VALUES(?,?,?,?,?)"
-    const valores = [user,email,senha,obs,role]
+async function aprovarForm(user, senha, email, obs, role, nome_completo) {
+    const comandosql = "INSERT INTO usuarios (user,email,senha_hash,obs,role, nome_completo) VALUES(?,?,?,?,?,?)"
+    const valores = [user,email,senha,obs,role, nome_completo]
     const [resultado] = await sql.query(comandosql, valores)
     return resultado;
 }

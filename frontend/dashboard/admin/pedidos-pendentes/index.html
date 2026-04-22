@@ -1,49 +1,66 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATLAS • Admin</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATLAS — Pedidos Pendentes</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-<div class="atlas-watermark">
-    <span class="atlas-title">ATLAS</span>
-    <span class="atlas-subtitle">Revisão de pedidos pendentes</span>
-</div>
+  <header class="header">
+    <a href="../index.html" class="header-back">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Voltar
+    </a>
+    <div class="logo">
+      <span class="logo-mark">▲</span>
+      <span class="logo-text">ATLAS</span>
+      <span class="logo-role">admin</span>
+    </div>
+    <button id="darkModeToggle" class="icon-btn" title="Modo escuro">🌙</button>
+  </header>
 
-<div class="admin-panel">
+  <main class="main">
 
-    <!-- COLUNA ESQUERDA -->
-    <div class="left-panel">
-        <button id="reload">⟳ Recarregar lista</button>
-
-        <div class="list">
-            <!-- itens entram via JS -->
-        </div>
+    <div class="page-intro">
+      <p class="page-label">Administração</p>
+      <h1 class="page-title">Pedidos <span class="accent">pendentes</span></h1>
+      <p class="page-sub">Revise e aprove ou recuse as solicitações de acesso ao sistema.</p>
     </div>
 
-    <!-- COLUNA DIREITA -->
-    <div class="right-panel">
-        <div class="editor">
-            <input id="f-id" placeholder="ID" disabled>
-            <input id="f-nome" placeholder="Nome">
-            <input id="f-email" placeholder="Email">
-            <input id="f-privilegio" placeholder="Privilégio">
-            <input id="f-data" placeholder="Data" disabled>
-            <textarea id="f-obs" placeholder="Observações"></textarea>
-        </div>
-
-        <div class="actions">
-            <button class="approve" id="aprovarbotao">APROVAR</button>
-            <button class="reject" id="recusarbotao">RECUSAR</button>
-            <button class="edit" id="editarbotao">EDITAR</button>
-        </div>
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="count-badge" id="countBadge">— pedidos</span>
+      </div>
+      <button class="btn-reload" id="reload">
+        <svg id="reloadIcon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Carregar pedidos
+      </button>
     </div>
 
-</div>
-<script src="../../../config.js"></script>
-<script src="script.js"></script>
+    <!-- Estado vazio -->
+    <div id="emptyState" class="empty-state hidden">
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <p class="empty-title" id="emptyTitle">Nenhum pedido por aqui</p>
+      <p class="empty-sub" id="emptySub">Clique em "Carregar pedidos" para buscar solicitações pendentes.</p>
+    </div>
+
+    <!-- Lista de pedidos -->
+    <div class="requests-list" id="requestsList"></div>
+
+    <!-- Toast global -->
+    <div id="toast" class="toast hidden" aria-live="polite"></div>
+
+  </main>
+
+  <script src="../../../config.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

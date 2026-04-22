@@ -1,279 +1,151 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-<head> 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATLAS SYSTEM :: Create User</title>
-
-<style>
-/* ==============================
-   VARIÁVEIS DO SISTEMA ATLAS
-================================ */
-:root {
-    --atlas-neon: #22d3ee;
-    --atlas-text-secondary: #94a3b8;
-    --atlas-bg: #020617;
-    --atlas-panel: #020617cc;
-    --atlas-border: #0f172a;
-    --atlas-error: #f43f5e;
-    --atlas-success: #22c55e;
-}
-
-/* ==============================
-   RESET GLOBAL
-================================ */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: "Inter", "Segoe UI", sans-serif;
-}
-
-/* ==============================
-   BACKGROUND GLOBAL
-================================ */
-body {
-    background: radial-gradient(circle at top, #020617, #000);
-    min-height: 100vh;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-/* ==============================
-   MARCA D'ÁGUA ATLAS
-================================ */
-body::after {
-    content: "ATLAS";
-    position: fixed;
-    bottom: 40px;
-    right: 60px;
-    font-size: 120px;
-    font-weight: 800;
-    letter-spacing: 12px;
-    color: rgba(34, 211, 238, 0.04);
-    pointer-events: none;
-    user-select: none;
-}
-
-/* ==============================
-   CONTAINER PRINCIPAL
-   🔻 LEVEMENTE REDUZIDO
-================================ */
-.atlas-container {
-    width: 820px; /* antes: 920px */
-    background: var(--atlas-panel);
-    border: 1px solid var(--atlas-border);
-    border-radius: 14px;
-    padding: 26px; /* antes: 32px */
-    box-shadow: 0 0 60px rgba(34, 211, 238, 0.08);
-    position: relative;
-    overflow: hidden;
-
-    /* Pulse Neon */
-    animation: atlasPulse 6s ease-in-out infinite;
-}
-
-/* ==============================
-   ANIMAÇÃO PULSE NEON
-   brilho lento e sutil
-================================ */
-
-/* @keyframes atlasPulse {
-    0%, 100% {
-        box-shadow: 0 0 40px rgba(34, 211, 238, 0.06);
-    }
-    50% {
-        box-shadow: 0 0 80px rgba(34, 211, 238, 0.18);
-    }
-} */
-
-
-/* ==============================
-   HEADER
-================================ */
-.atlas-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
-}
-
-.atlas-title h1 {
-    font-size: 22px;
-    letter-spacing: 2px;
-    color: var(--atlas-neon);
-}
-
-.atlas-title span {
-    font-size: 12px;
-    color: var(--atlas-text-secondary);
-    letter-spacing: 1px;
-}
-
-/* ==============================
-   CHAVES OPCIONAIS
-================================ */
-.atlas-optional-keys {
-    display: flex;
-    gap: 12px;
-}
-
-.atlas-optional-keys input {
-    width: 170px;
-}
-
-/* ==============================
-   FORMULÁRIO
-================================ */
-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-/* ==============================
-   INPUTS
-================================ */
-label {
-    font-size: 12px;
-    color: var(--atlas-text-secondary);
-    margin-bottom: 6px;
-    display: block;
-    letter-spacing: 1px;
-}
-
-input, textarea {
-    width: 100%;
-    padding: 11px 14px;
-    background: #020617;
-    border: 1px solid var(--atlas-border);
-    border-radius: 8px;
-    color: white;
-    outline: none;
-    transition: all .25s ease;
-}
-
-input:focus, textarea:focus {
-    border-color: var(--atlas-neon);
-    box-shadow: 0 0 12px rgba(34, 211, 238, 0.25);
-}
-
-textarea {
-    resize: none;
-    height: 110px;
-    grid-column: 1 / 3;
-}
-
-.atlas-key {
-    grid-column: 1 / 3;
-}
-
-/* ==============================
-   CAMPO DE MENSAGENS (P)
-================================ */
-.atlas-message {
-    grid-column: 1 / 3;
-    border-radius: 10px;
-    padding: 14px 18px;
-    border: 1px solid var(--atlas-border);
-    background: linear-gradient(135deg, #020617, #020617dd);
-    color: var(--atlas-text-secondary);
-    font-size: 14px;
-    letter-spacing: .5px;
-    position: relative;
-    overflow: hidden;
-}
-
-/* ==============================
-   AÇÕES
-================================ */
-.atlas-actions {
-    grid-column: 1 / 3;
-    display: flex;
-    justify-content: flex-end;
-}
-
-button {
-    padding: 13px 30px;
-    background: transparent;
-    border: 1px solid var(--atlas-neon);
-    color: var(--atlas-neon);
-    border-radius: 10px;
-    letter-spacing: 2px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .3s ease;
-}
-
-button:hover {
-    background: var(--atlas-neon);
-    color: #020617;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
-}
-</style>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATLAS — Criar Usuário</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
-
 <body>
 
-<div class="atlas-container">
+  <header class="header">
+    <div class="logo">
+      <span class="logo-mark">▲</span>
+      <span class="logo-text">ATLAS</span>
+    </div>
+    <button id="darkModeToggle" class="icon-btn" aria-label="Alternar tema" title="Modo escuro">🌙</button>
+  </header>
 
-    <div class="atlas-header">
-        <div class="atlas-title">
-            <h1>ATLAS SYSTEM</h1>
-            <span>SECURE USER CREATION PANEL</span>
-        </div>
+  <main class="main">
 
-        <div class="atlas-optional-keys">
-            <input type="text" placeholder="Atlas-NoPending" id="chaveNoPending">
-            <input type="text" placeholder="Atlas-Role-Key" id="chavePrivilegio">
-        </div>
+    <div class="page-intro">
+      <p class="page-label">Sistema privado</p>
+      <h1 class="page-title">Criar <span class="accent">usuário</span></h1>
+      <p class="page-sub">Preencha os dados e as chaves de autorização para registrar um novo acesso.</p>
     </div>
 
-    <form>
+    <div class="form-card">
 
-        <div>
-            <label>USUÁRIO</label>
-            <input type="text" id="user">
+      <!-- ── Seção: Dados pessoais ── -->
+      <div class="section-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Dados do usuário
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="inputNome">Nome completo</label>
+        <input id="inputNome" class="field-input" type="text" placeholder="Ex: João da Silva" autocomplete="name" />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="inputUser">Usuário</label>
+        <div class="field-input-wrap">
+          <span class="field-prefix">@</span>
+          <input id="inputUser" class="field-input field-input--prefixed" type="text" placeholder="joao_silva" autocomplete="username" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="inputEmail">E-mail</label>
+        <input id="inputEmail" class="field-input" type="email" placeholder="joao@email.com" autocomplete="email" />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="inputSenha">Senha</label>
+        <div class="field-input-wrap">
+          <input id="inputSenha" class="field-input field-input--suffixed" type="password" placeholder="••••••••" autocomplete="new-password" />
+          <button type="button" class="field-toggle-pw" id="toggleSenha" aria-label="Mostrar senha">
+            <svg id="eyeIconSenha" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="inputObs">
+          Observações
+          <span class="field-hint">opcional</span>
+        </label>
+        <textarea id="inputObs" class="field-input field-input--textarea" placeholder="Alguma nota sobre este usuário..." rows="3"></textarea>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <!-- ── Seção: Chaves especiais ── -->
+      <div class="section-label section-label--keys">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Chaves de autorização
+      </div>
+
+      <div class="keys-grid">
+        <div class="field">
+          <label class="field-label" for="inputMagicCriar">
+            Chave de criação
+            <span class="field-badge">magicCriar</span>
+          </label>
+          <div class="field-input-wrap">
+            <input id="inputMagicCriar" class="field-input field-input--key field-input--suffixed" type="password" placeholder="••••••••••••" />
+            <button type="button" class="field-toggle-pw" data-target="inputMagicCriar" aria-label="Mostrar chave">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
 
-        <div>
-            <label>EMAIL</label>
-            <input type="email" id="email">
+        <div class="field">
+          <label class="field-label" for="inputMagicRole">
+            Chave de privilégio
+            <span class="field-badge">magicRole</span>
+          </label>
+          <div class="field-input-wrap">
+            <input id="inputMagicRole" class="field-input field-input--key field-input--suffixed" type="password" placeholder="••••••••••••" />
+            <button type="button" class="field-toggle-pw" data-target="inputMagicRole" aria-label="Mostrar chave">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
 
-        <div>
-            <label>SENHA</label>
-            <input type="password" id="senha">
+        <div class="field">
+          <label class="field-label" for="inputNoPending">
+            Chave NoPending
+            <span class="field-badge">chaveNoPending</span>
+          </label>
+          <div class="field-input-wrap">
+            <input id="inputNoPending" class="field-input field-input--key field-input--suffixed" type="password" placeholder="••••••••••••" />
+            <button type="button" class="field-toggle-pw" data-target="inputNoPending" aria-label="Mostrar chave">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
+      </div>
 
-        <div>
-            <label>CONFIRMAÇÃO</label>
-            <input type="password" id="senhaConfirmar">
+      <!-- Feedback -->
+      <div id="formFeedback" class="form-feedback" aria-live="polite"></div>
+
+      <!-- Resposta do backend -->
+      <div id="backendResponse" class="backend-response hidden">
+        <div class="backend-response__label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Resposta do servidor
         </div>
+        <pre id="backendResponseText"></pre>
+      </div>
 
-        <textarea placeholder="Observações do Usuário (nome completo, etc)" id="obs"></textarea>
+      <!-- Ações -->
+      <div class="form-actions">
+        <button type="button" id="btnReset" class="btn btn--ghost">Limpar</button>
+        <button type="button" id="btnCriar" class="btn btn--primary">
+          <span id="btnCriarLabel">Criar usuário</span>
+          <svg id="btnCriarSpinner" class="btn-spinner hidden" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        </button>
+      </div>
 
-        <div class="atlas-key">
-            <label>ATLAS-KEY-CREATE</label>
-            <input type="text" id="chaveCriar">
-        </div>
+    </div>
 
+  </main>
 
-        <p class="atlas-message" id="erro">
-            Aguardando instruções do núcleo ATLAS...
-        </p>
-
-        <div class="atlas-actions">
-            <button type="button" id="enviarForm">CRIAR USUÁRIO</button>
-        </div>
-
-    </form>
-</div>
-
-<script src="../../config.js"></script>
-<script src="script.js"></script>
+  <script src="../../config.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

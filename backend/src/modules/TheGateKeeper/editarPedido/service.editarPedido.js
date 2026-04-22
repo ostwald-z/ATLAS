@@ -3,7 +3,7 @@ const AppError = require("../../../error/AppError")
 const bcrypt = require("bcrypt")
 const validator = require("validator")
 
-async function updateForm(user, email, senha, obs, role, id) {
+async function updateForm(user, email, senha, obs, role, id, nome_completo) {
     
     const campos = []
     const valores = []
@@ -70,6 +70,22 @@ async function updateForm(user, email, senha, obs, role, id) {
         campos.push("role = ?")
         valores.push(roleLimpa)
     }
+
+
+    if(typeof nome_completo === "string" && nome_completo.trim().length > 0){
+
+        //PADRONIZA
+
+        const nome_comp_limpo = nome_completo.trim()
+
+        if(nome_comp_limpo.length > 100){
+            throw new AppError("Nome e Sobrenome maiores que o permitido")
+        }
+
+        campos.push("nome_completo = ?")
+        valores.push(nome_comp_limpo)
+    }
+
 
     if(campos.length === 0){
         throw new AppError("NADA válido para atualizar o Formulário")

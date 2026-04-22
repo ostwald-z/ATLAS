@@ -5,10 +5,12 @@ const service = require("./serviceCriarUser")
 async function criarUser(req,res,next) {
     try{
 
-        const {user,senha,email,obs,magicRole,magicCriar} = req.body
+        const {user,senha,email,obs,magicRole,magicCriar,nome_completo} = req.body
         const {chaveNoPending} = req.body
 
-        const resultado = await service.criarUser(user, senha, email, magicCriar, magicRole, obs, chaveNoPending)
+        const httpInfo = req.httpInfo
+
+        const resultado = await service.criarUser(user, senha, email, magicCriar, magicRole, obs, chaveNoPending, nome_completo, httpInfo)
 
 
 

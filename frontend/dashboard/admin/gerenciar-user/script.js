@@ -58,10 +58,10 @@ profileDropdown.addEventListener('click', (e) => e.stopPropagation());
 // Buscar Info do Admin
 async function loadUserInfo() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/me`, { method: 'GET', credentials: 'include' });
+    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, { method: 'GET', credentials: 'include' });
     if (!res.ok) throw new Error();
     const data = await res.json();
-    const id = data.id || data.userId || data._id || '—';
+    const id = data.id || data.user || data._id || '—';
     const initials = String(id).slice(0, 2).toUpperCase();
     document.getElementById('profileAvatar').textContent  = initials;
     document.getElementById('dropdownAvatar').textContent = initials;
@@ -148,6 +148,7 @@ function renderUsers(usersArray) {
     // Ao clicar em editar, abre o modal
     row.querySelector('button').addEventListener('click', () => {
       document.getElementById('userId').value = user.id;
+      document.getElementById("nomeSobrenome").value = user.nome_completo
       document.getElementById('nome').value = user.user;
       document.getElementById('email').value = user.email;
       document.getElementById('privilegio').value = user.role;
@@ -223,6 +224,7 @@ editForm.addEventListener("submit", async (e) => {
   const novaSenha = document.getElementById("senha").value; // Senha não comparamos, se preencher envia
   const novaObs   = document.getElementById("obs").value.trim();
   const novaRole  = document.getElementById("privilegio").value;
+  const NovoNome_completo = document.getElementById("nomeSobrenome").value.trim();
 
   // 2. Buscamos os valores originais que estão salvos na "linha" da tabela
   // Isso evita que o backend tente validar um nome/email que já pertence a este ID
@@ -238,7 +240,8 @@ editForm.addEventListener("submit", async (e) => {
     email:    novoEmail === emailOriginal ? "" : novoEmail,
     senha:    novaSenha, // Se estiver vazio, o backend já ignora pelo seu service
     obs:      novaObs,   // Normalmente enviado se houver texto
-    roleEdit: novaRole === roleOriginal ? "" : novaRole
+    roleEdit: novaRole === roleOriginal ? "" : novaRole,
+    nome_completo: NovoNome_completo
   };
 
   try {

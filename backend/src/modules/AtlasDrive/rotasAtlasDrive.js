@@ -84,11 +84,11 @@ const controller_delete_vault = require("./AtlasVault/AtlasVault-delete/controll
 
 
 //VERIFICA ACESSO INICIAL RENOMEAR
-rotaDrive.post("/vault/verificar-acesso", authMiddle, middleRole(["user", "admin"]), controller_vault.controller_verificar_acesso_inicial)
-
+rotaDrive.post("/vault/verificar-acesso", authMiddle, middleRole("admin"), controller_vault.controller_verificar_acesso_inicial)
 
 // autentica de fato o usuario após acertar a senha no painel , entrega SESSION TOKEN (sessionStorage)
-rotaDrive.post("/vault/autenticar", middlewareRate, authMiddle, middleRole(["user", "admin"]), controller_vault_autenticar.controller_verificar_senha_vault)
+// essa rota da o bearer token vault para mexer no vault de fato.
+rotaDrive.post("/vault/autenticar", middlewareRate, authMiddle, middleRole("admin"), controller_vault_autenticar.controller_verificar_senha_vault)
 
 
 // ROTA QUE LISTA A PORRA DO ATLAS VAULT  (MIDDLEWARE PERSONALIZADO para ler TOKEN DADO PARA ALTERAÇÕES E LEITURA DO VAULT)

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATLAS — Editar Perfil</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <a href="../user/indexUser.html" class="header-back" aria-label="Voltar ao painel">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Voltar
+    </a>
+
+    <div class="logo">
+      <span class="logo-mark">▲</span>
+      <span class="logo-text">ATLAS</span>
+    </div>
+
+    <button id="darkModeToggle" class="icon-btn" aria-label="Alternar tema" title="Modo escuro">🌙</button>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <div class="page-intro">
+      <p class="page-label">Configurações da conta</p>
+      <h1 class="page-title">Editar <span class="accent">perfil</span></h1>
+      <p class="page-sub">Atualize suas informações pessoais e de acesso.</p>
+    </div>
+
+    <!-- Card do formulário -->
+    <div class="form-card">
+
+      <!-- ID — só leitura -->
+      <div class="field field--readonly">
+        <label class="field-label">
+          ID da conta
+          <span class="field-badge">somente leitura</span>
+        </label>
+        <div class="field-static" id="displayId">—</div>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <!-- Nome -->
+      <div class="field">
+        <label class="field-label" for="inputName">Nome</label>
+        <input
+          id="inputName"
+          class="field-input"
+          type="text"
+          placeholder="Seu nome completo"
+          autocomplete="name"
+        />
+      </div>
+
+      <!-- Usuário -->
+      <div class="field">
+        <label class="field-label" for="inputUsername">Usuário</label>
+        <div class="field-input-wrap">
+          <span class="field-prefix">@</span>
+          <input
+            id="inputUsername"
+            class="field-input field-input--prefixed"
+            type="text"
+            placeholder="seu_usuario"
+            autocomplete="username"
+          />
+        </div>
+      </div>
+
+      <!-- E-mail -->
+      <div class="field">
+        <label class="field-label" for="inputEmail">E-mail</label>
+        <input
+          id="inputEmail"
+          class="field-input"
+          type="email"
+          placeholder="seu@email.com"
+          autocomplete="email"
+        />
+      </div>
+
+      <!-- Senha -->
+      <div class="field">
+        <label class="field-label" for="inputPassword">
+          Senha
+          <span class="field-hint">deixe vazio para não alterar</span>
+        </label>
+        <div class="field-input-wrap">
+          <input
+            id="inputPassword"
+            class="field-input field-input--suffixed"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="new-password"
+          />
+          <button type="button" class="field-toggle-pw" id="togglePassword" aria-label="Mostrar senha">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Role / Privilégio -->
+      <div class="field">
+        <label class="field-label">Privilégio</label>
+        <div class="role-selector">
+          <button type="button" class="role-option role-option--active" data-role="user" id="roleUser">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Usuário
+          </button>
+          <button type="button" class="role-option" data-role="admin" id="roleAdmin">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Admin
+          </button>
+        </div>
+      </div>
+
+      <!-- Observações -->
+      <div class="field">
+        <label class="field-label" for="inputObs">
+          Observações
+          <span class="field-hint">preenchido no cadastro</span>
+        </label>
+        <textarea
+          id="inputObs"
+          class="field-input field-input--textarea"
+          placeholder="Nenhuma observação"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <!-- Toast de feedback inline -->
+      <div id="formFeedback" class="form-feedback" aria-live="polite"></div>
+
+      <!-- Ações -->
+      <div class="form-actions">
+        <a href="../index.html" class="btn btn--ghost">Cancelar</a>
+        <button type="button" id="btnSave" class="btn btn--primary">
+          <span id="btnSaveLabel">Aplicar alterações</span>
+          <svg id="btnSaveSpinner" class="btn-spinner hidden" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="../../config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

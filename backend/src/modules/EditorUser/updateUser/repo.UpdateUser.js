@@ -8,6 +8,15 @@ async function updateUser(campos, valores) {
 }
 
 
+async function buscarPorId(id) {
+    const comandosql = "SELECT * FROM usuarios WHERE id = ?"
+    const valores = [id]
+    const [resultado] = await sql.query(comandosql, valores)
+
+    return resultado
+}
+
+
 
 async function buscarUser(user) {
     const comandosql = "SELECT * FROM usuarios WHERE user = ?"
@@ -26,5 +35,6 @@ async function buscarEmail(email) {
 module.exports = {
     updateUser,
     buscarEmail,
-    buscarUser
+    buscarUser,
+    buscarPorId
 }

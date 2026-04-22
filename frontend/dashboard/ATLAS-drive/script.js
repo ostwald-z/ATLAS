@@ -10,7 +10,7 @@
 
     if (!res.ok) {
       // Token inválido ou não existe -> redireciona
-      window.location.href = '../../../painelDeLogin/login/index.html';
+      window.location.href = '../../painelDeLogin/login/index.html';
       return;
     }
 
@@ -19,7 +19,7 @@
 
   } catch (err) {
     console.error('Erro na verificação de token:', err);
-    window.location.href = '../../../painelDeLogin/login/index.html';
+    window.location.href = '../../painelDeLogin/login/index.html';
   }
 })();
 
@@ -706,7 +706,14 @@ function renderFiles(files) {
           else { itensSelecionados.add(file.nome); div.classList.add('selected'); }
           atualizarContadorSelecao(); return;
         }
-        // clique simples só seleciona, não entra
+
+        // 🔥 UX PREMIUM MOBILE: Se a tela for pequena, 1 clique = abre a pasta. Se for PC, seleciona.
+        if (window.innerWidth <= 768 && file.tipo === 'pasta') {
+          openItem(file.nome, file.tipo);
+          return;
+        }
+
+        // Clique simples no PC (ou em arquivo no Mobile) só seleciona
         itensSelecionados.clear();
         limparSelecaoVisual();
         div.classList.add('selected');
@@ -714,6 +721,7 @@ function renderFiles(files) {
         atualizarContadorSelecao();
       };
 
+      // Double click (Usado primariamente em Desktop)
       div.ondblclick = () => {
         openItem(file.nome, file.tipo);
       };
@@ -890,57 +898,17 @@ async function visualizarArquivo(caminho_relativo, nomeOriginal) {
     const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        caminho_arquivo: caminho_relativo
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_arquivo: caminho_relativo })
     });
 
     if (!response.ok) throw new Error('Erro ao buscar arquivo');
 
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-
     const nome = (nomeOriginal || '').toLowerCase();
 
-    previewHeader.textContent = `${getIcon(nome)} ${formatarNomeArquivo(nomeOriginal)}`;
-
-    previewContent.innerHTML = '';
-
-    //  IMAGEM
-    if (nome.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-      previewContent.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%;">`;
-    }
-
-    //  TEXTO
-    else if (nome.match(/\.(txt|json|js|html|css|md)$/)) {
-      const text = await blob.text();
-      previewContent.innerHTML = `<pre style="white-space: pre-wrap;">${text}</pre>`;
-    }
-
-    //  ZIP (básico)
-    else if (nome.match(/\.(zip)$/)) {
-      previewContent.innerHTML = `
-        <div style="color:#94a3b8;">
-          Visualização básica de ZIP não implementada ainda <br>
-          (precisa de lib tipo JSZip)
-        </div>
-      `;
-    }
-
-    // OUTROS
-    else {
-      previewContent.innerHTML = `
-        <div style="color:#94a3b8;">
-          Não foi possível pré-visualizar esse item
-        </div>
-      `;
-    }
-
-    previewModal.style.opacity = '1';
-    previewModal.style.pointerEvents = 'all';
+    _abrirPreviewModal(url, blob, nome, nomeOriginal, caminho_relativo, false);
 
   } catch (err) {
     console.error(err);
@@ -1430,9 +1398,11 @@ document.addEventListener('dragend', () => {
 
 
 document.querySelector('.main').addEventListener('mousedown', (e) => {
-  // só botão esquerdo
-  if (e.button !== 0) return;
+  
+  // 🔥 FIX MOBILE: Impede que o touch inicie a caixa de seleção invisível e trave a tela!
+  if (e.pointerType === 'touch' || (e.touches && e.touches.length > 0)) return;
 
+  // só botão esquerdo
   if (e.button !== 0) return;
 
   // ❌ não inicia se clicou em arquivo
@@ -2436,8 +2406,7 @@ async function abrirEditorTxt(caminho_relativo, nomeOriginal) {
     atualizarContadorEditor();
 
     // Abre o modal
-    txtEditorModal.style.opacity = '1';
-    txtEditorModal.style.pointerEvents = 'all';
+    txtEditorModal.classList.add('open');
     setTimeout(() => txtEditorArea.focus(), 100);
 
   } catch (err) {
@@ -2449,8 +2418,7 @@ async function abrirEditorTxt(caminho_relativo, nomeOriginal) {
 }
 
 function fecharEditorTxt() {
-  txtEditorModal.style.opacity = '0';
-  txtEditorModal.style.pointerEvents = 'none';
+  txtEditorModal.classList.remove('open');
   txtEditorArea.value = '';
   txtEditorCaminho = null;
   txtEditorNome    = null;
@@ -2458,11 +2426,11 @@ function fecharEditorTxt() {
 
 function atualizarStatusEditor(modificado) {
   if (modificado) {
-    txtEditorStatus.textContent  = '● NÃO SALVO';
-    txtEditorStatus.style.color  = '#f59e0b';
+    txtEditorStatus.textContent = '● NÃO SALVO';
+    txtEditorStatus.classList.add('modified');
   } else {
-    txtEditorStatus.textContent  = 'SEM ALTERAÇÕES';
-    txtEditorStatus.style.color  = '#475569';
+    txtEditorStatus.textContent = 'SEM ALTERAÇÕES';
+    txtEditorStatus.classList.remove('modified');
   }
 }
 
@@ -2630,8 +2598,7 @@ async function abrirEditorTxtVault(caminho_relativo, nomeOriginal) {
     atualizarStatusEditor(false);
     atualizarContadorEditor();
 
-    txtEditorModal.style.opacity      = '1';
-    txtEditorModal.style.pointerEvents = 'all';
+    txtEditorModal.classList.add('open');
     setTimeout(() => txtEditorArea.focus(), 100);
 
   } catch (err) {
@@ -2821,6 +2788,9 @@ function configurarLongPress(divEl, file) {
 
   divEl.addEventListener('touchstart', (e) => {
     ativou = false;
+    // Cancela scroll nativo durante long press para o timer disparar corretamente
+    const startX = e.touches[0].clientX;
+    const startY = e.touches[0].clientY;
     timer = setTimeout(() => {
       ativou = true;
       if (navigator.vibrate) navigator.vibrate(30);
@@ -2848,8 +2818,11 @@ function configurarLongPress(divEl, file) {
   divEl.addEventListener('touchend', () => {
     clearTimeout(timer); timer = null;
   });
-  divEl.addEventListener('touchmove', () => {
-    clearTimeout(timer); timer = null;
+  divEl.addEventListener('touchmove', (e) => {
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    // Só cancela se o dedo realmente moveu (evita falsos cancelamentos)
+    if (dx > 10 || dy > 10) { clearTimeout(timer); timer = null; }
   });
 
   // IMPORTANTE: bloqueia o click se foi long press
@@ -3189,4 +3162,30 @@ function _opTempoRelativo(ts) {
 }
 
 
+
+// ══════════════════════════════════════════════
+// DARK MODE — integrado com localStorage atlasTheme
+// ══════════════════════════════════════════════
+
+(function iniciaDarkMode() {
+  const saved = localStorage.getItem('atlasTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  atualizarIconeDarkMode();
+})();
+
+function atualizarIconeDarkMode() {
+  const btn = document.getElementById('darkModeToggle');
+  if (!btn) return;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  btn.textContent = isDark ? '☀️' : '🌙';
+  btn.title = isDark ? 'Modo claro' : 'Modo escuro';
+}
+
+document.getElementById('darkModeToggle').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('atlasTheme', next);
+  atualizarIconeDarkMode();
+});
 

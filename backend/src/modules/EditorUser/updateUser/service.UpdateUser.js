@@ -3,12 +3,16 @@ const repo = require("./repo.UpdateUser")
 const validator = require("validator")
 const bcrypt = require("bcrypt")
 
+const logUpdate = require("./updateLOGGER")
+
+
 //fazer patch aqui
 
-async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser) {
+async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser, nome_completo, httpInfo) {
+
     const campos = []
     const valores = []
-
+    const changes = [];
 
     const idLimpo = Number(id)
 
@@ -19,6 +23,24 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
     if(!Number.isInteger(idLimpo) || idLimpo <= 0){
         throw new AppError("ID inválido")
     }
+
+
+    const [usuarioAntes] = await repo.buscarPorId(idLimpo);
+
+    if (!usuarioAntes) {
+    logUpdate.logUpdate({
+        status: "falha",
+        detalhes: "ID não encontrado",
+        actorId: idUser,
+        targetId: id,
+        httpInfo,
+    });
+
+    throw new AppError("ID não encontrado");
+    }
+
+
+
 
 
     //VERIFICA SE ELE QUER ATUALIZAR O PROPRIO USUARIO OU OUTRO ALGUEM
@@ -51,8 +73,18 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
             throw new AppError("Usuário já existente", 409)
         }
 
-        campos.push("user = ?")
-        valores.push(userLimpo)
+
+        if (userLimpo !== usuarioAntes.user) {
+            changes.push({
+                field: "user",
+                before: usuarioAntes.user,
+                after: userLimpo,
+            });
+
+            campos.push("user = ?");
+            valores.push(userLimpo);
+        }
+
     }
 
 
@@ -70,8 +102,17 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
             throw new AppError("Email já existente", 409)
         }
 
-        campos.push("email = ?")
-        valores.push(emailLimpo)
+
+        if (emailLimpo !== usuarioAntes.email) {
+            changes.push({
+                field: "email",
+                before: usuarioAntes.email,
+                after: emailLimpo,
+            });
+
+            campos.push("email = ?");
+            valores.push(emailLimpo);
+        }
     }
 
 
@@ -91,11 +132,41 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         const senhaHash = await bcrypt.hash(senhaLimpa, 10)
         campos.push("senha_hash = ?")
         valores.push(senhaHash)
+
+        changes.push({
+            field: "senha",
+            before: "HASH_OCULTADO",
+            after: "HASH_OCULTADO",
+        });
+
     }
 
     if(typeof obs === "string" && obs.trim().length > 0){
-        campos.push("obs = ?")
-        valores.push(obs)
+
+        if (obs !== usuarioAntes.obs) {
+            changes.push({
+                field: "obs",
+                before: usuarioAntes.obs,
+                after: obs,
+            });
+
+            campos.push("obs = ?");
+            valores.push(obs);
+        }
+        
+    }
+
+
+    if(typeof nome_completo === "string" && nome_completo.trim().length > 0){
+
+
+        //padronizo nome completo
+        const nome_completo_limpo = nome_completo.trim()
+
+
+
+        campos.push("nome_completo = ?")
+        valores.push(nome_completo_limpo)
     }
 
 
@@ -105,23 +176,67 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
 
         if(roleEdit !== "user"){
             if(roleToken !== "admin"){
-            throw new AppError("Você não tem permissão para mudar seu privilégio.", 403)
-        }}
+                logUpdate.logUpdate({
+                    status: "falha",
+                    detalhes: "Não tem permissão para mudar o privilégio de alguêm",
+                    actorId: idUser,
+                    targetId: idLimpo,
+                    changes: [],
+                    httpInfo,
+                });
+                throw new AppError("Você não tem permissão para mudar seu privilégio.", 403)
+            }
 
-
-        campos.push("role = ?")
-        valores.push(roleEdit)
-        valores.push(idLimpo)
-
-        const resultado = await repo.updateUser(campos, valores)
-        if(resultado.affectedRows === 0){
-            throw new AppError("ID não encontrado, nenhuma mudança feita.")
         }
 
-        return resultado;
 
+        if (roleEdit !== usuarioAntes.role) {
+            changes.push({
+                field: "role",
+                before: usuarioAntes.role,
+                after: roleEdit,
+            });
+        }
+
+
+        // se chegou aqui, então DE FATO, a role é ADMIN - e o usuário É ADMIN para fazer isso
+        // do contrário, executa outro IF, não esse de admin
+        if(roleEdit !== "user"){
+
+            campos.push("role = ?")
+            valores.push(roleEdit)
+            valores.push(idLimpo)
+
+
+            const resultado = await repo.updateUser(campos, valores)
+            if(resultado.affectedRows === 0){
+
+                logUpdate.logUpdate({
+                    status: "falha",
+                    detalhes: "ID não encontrado",
+                    actorId: idUser,
+                    targetId: idLimpo,
+                    changes: [],
+                    httpInfo,
+                });
+                throw new AppError("ID não encontrado, nenhuma mudança feita.")
+
+            }
+
+
+            logUpdate.logUpdate({
+                status: "sucesso",
+                detalhes: "Usuário atualizado com sucesso PROMOVENDO para ADMIN",
+                actorId: idUser,
+                targetId: idLimpo,
+                changes,
+                httpInfo,     
+            });
+
+            return resultado;
+
+        }
     }
-
 
 
     if(campos.length === 0){
@@ -134,6 +249,16 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
     if(resultado.affectedRows === 0){
         throw new AppError("ID não encontrado, nenhuma mudança feita.")
     }
+
+    logUpdate.logUpdate({
+        status: "sucesso",
+        detalhes: "Usuário atualizado com sucesso normalmente",
+        actorId: idUser,
+        targetId: idLimpo,
+        changes,
+        httpInfo
+    });
+
 
     return resultado;
 }
