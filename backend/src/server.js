@@ -35,27 +35,6 @@ server.use(httpInfoMiddleware)
 server.use("/api", rotaGeral)
 
 
-// Rota protegida — backend verifica ANTES de servir
-
-
-/*server.get('/dashboard/admin', verificarAcessoAdmin, (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../frontend/dashboard/admin/index.html'));
-});
-
-server.get('/dashboard/user', verificarAcessoUser, (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../frontend/dashboard/user/index.html'));
-});
-
-// Login é público
-server.get('/login', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../frontend/painelDeLogin/login/index.html'));
-});
-
-server.use('/login', express.static(path.join(__dirname, '../../frontend/painelDeLogin')));
-
-*/
-
-
 // --- FUNÇÃO PRA ENCRIPTAR ALGO RAPIDÃO, pra colocar no .env e poder usar o bcrypt
 
 
@@ -77,6 +56,8 @@ server.use(erroMiddle)
 
 
 
-server.listen(process.env.PORT, '127.0.0.1', () => {
-    console.log("Server: ON na porta", process.env.PORT)
-})
+// Deixe sem o IP, assim ele aceita localhost e conexões da rede interna
+server.listen(process.env.PORT, () => {
+    console.log(`Server: ON na porta ${process.env.PORT}`);
+});
+

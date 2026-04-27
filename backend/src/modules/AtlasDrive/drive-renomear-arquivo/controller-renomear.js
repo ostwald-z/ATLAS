@@ -8,6 +8,9 @@ async function renomear_arquivo_controller(req,res,next) {
 
         const {novo_nome_arquivo, caminho_arquivo, pasta_ou_arquivo, mover} = req.body
 
+        console.log("controller chegou aqui")
+        console.log("BODY: ", novo_nome_arquivo, caminho_arquivo, pasta_ou_arquivo, mover)
+
         const resultado = await service_renomear_arquivo.renomear_arquivo(caminho_arquivo, id_user, novo_nome_arquivo, pasta_ou_arquivo, mover)
 
         res.status(200).json({
@@ -16,6 +19,7 @@ async function renomear_arquivo_controller(req,res,next) {
 
 
     }catch(erro){
+        console.log("CONTROLLER erro mover/renomear arquivo: ", erro)
         next(erro)
     }
 }

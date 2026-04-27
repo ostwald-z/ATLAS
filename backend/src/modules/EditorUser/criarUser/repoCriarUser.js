@@ -33,9 +33,10 @@ async function buscarEmail(email) {
 
 
 
+
 module.exports = {
     criarUser,
     buscarUser,
     buscarEmail,
-    enviarParaAprovacao
+    enviarParaAprovacao,
 }

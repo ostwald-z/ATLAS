@@ -10,6 +10,7 @@ const path = require("path")
 async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pasta_ou_arquivo, mover) {
     
     if(!pasta_ou_arquivo){
+        console.log("Não foi definido corretamente se é arquivo ou pasta.")
         throw new AppError("Não foi definido corretamente se é arquivo ou pasta.")
     }
 
@@ -30,10 +31,12 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
 
         if (!normalizadoOrigem.startsWith(pasta_usuario) || 
             !normalizadoDestino.startsWith(pasta_usuario)) {
+            console.log("Acesso não autorizado 403")
             throw new AppError("Acesso não autorizado", 403);
         }
 
         if (!fs.existsSync(normalizadoOrigem)) {
+            console.log("Erro, arquivo ou pasta de origem não existe")
             throw new AppError("O arquivo ou pasta de origem não existe.", 404);
         }
 
@@ -64,7 +67,7 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
             return { status: "sucesso", operacao: "mover" };
 
         } catch (err) {
-            console.error("Erro ao mover no FS:", err);
+            console.log("Erro ao mover no FS:", err);
             throw new AppError("Erro técnico ao mover o item no servidor.");
         }
     }
@@ -105,7 +108,8 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
         // Verificamos se tanto o caminho antigo quanto o novo começam com a pasta_usuario
         if (!caminho_completo_com_arquivo_antigo.startsWith(pasta_usuario) || 
             !novo_caminho_com_novo_nome.startsWith(pasta_usuario)) {
-            throw new Error("Acesso não autorizado: Tentativa de sair do diretório permitido.");
+            console.log("Acesso não autorizado: Tentativa de sair do diretório permitido")
+            throw new AppError("Acesso não autorizado: Tentativa de sair do diretório permitido.", 403);
         }
 
         //tenta renomear o caralho

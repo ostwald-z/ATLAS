@@ -575,6 +575,11 @@ function renderFiles(files) {
 
     // seleção ctrl+click
     div.onclick = (e) => {
+      if (isMobileViewport() && mobileSelectionMode) {
+        toggleSelecaoItem(file, div);
+        return;
+      }
+
       if (e.ctrlKey) {
         if (itensSelecionados.has(file.nome)) {
           itensSelecionados.delete(file.nome);
@@ -701,6 +706,11 @@ function renderFiles(files) {
         itensSelecionados.clear();
       };
       div.onclick = (e) => {
+        if (isMobileViewport() && mobileSelectionMode) {
+          toggleSelecaoItem(file, div);
+          return;
+        }
+
         if (e.ctrlKey) {
           if (itensSelecionados.has(file.nome)) { itensSelecionados.delete(file.nome); div.classList.remove('selected'); }
           else { itensSelecionados.add(file.nome); div.classList.add('selected'); }
@@ -737,6 +747,318 @@ function renderFiles(files) {
 
 
 const selectionInfo = document.getElementById('selectionInfo');
+const mobileFabEl = document.getElementById('mobileFab');
+const moveFolderPicker = document.getElementById('moveFolderPicker');
+const moveFolderCurrentPathEl = document.getElementById('moveFolderCurrentPath');
+const moveFolderListEl = document.getElementById('moveFolderList');
+const moveFolderCloseBtn = document.getElementById('moveFolderCloseBtn');
+const moveFolderCancelBtn = document.getElementById('moveFolderCancelBtn');
+const moveFolderConfirmBtn = document.getElementById('moveFolderConfirmBtn');
+const moveFolderUpBtn = document.getElementById('moveFolderUpBtn');
+const moveFolderRootBtn = document.getElementById('moveFolderRootBtn');
+let mobileSelectionMode = false;
+let movePickerPath = '/';
+
+function isMobileViewport() {
+  return window.innerWidth <= 768;
+}
+
+function showMobileToast(message, type = 'info', duration = 2400) {
+  if (!message) return;
+
+  let wrap = document.getElementById('mobileToastWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'mobileToastWrap';
+    wrap.className = 'mobile-toast-wrap';
+    document.body.appendChild(wrap);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `mobile-toast ${type}`;
+  toast.textContent = message;
+  wrap.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add('show'));
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 220);
+  }, duration);
+}
+
+function setMobileSelectionMode(enabled) {
+  const prev = mobileSelectionMode;
+  mobileSelectionMode = !!enabled;
+  document.body.classList.toggle('mobile-select-mode', mobileSelectionMode);
+
+  if (!mobileSelectionMode) {
+    itensSelecionados.clear();
+    limparSelecaoVisual();
+  }
+
+  // Sem toast — o indicador visual na topbar já comunica o estado
+  _atualizarIndicadorSelecao();
+
+  // Reset visual do FAB
+  const fab = document.getElementById('mobileFab');
+  if (fab) {
+    fab.style.background = '';
+    fab.style.boxShadow  = '';
+    fab.textContent      = '+';
+  }
+
+
+
+  atualizarContadorSelecao();
+}
+
+
+
+
+function _atualizarIndicadorSelecao() {
+  let bar = document.getElementById('mobileSelectBar');
+
+  if (!mobileSelectionMode) {
+    if (bar) {
+      bar.style.transform = 'translateY(-100%)';
+      bar.style.opacity = '0';
+      setTimeout(() => bar?.remove(), 250);
+    }
+    return;
+  }
+
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'mobileSelectBar';
+    bar.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 950;
+      height: 3px;
+      background: linear-gradient(90deg, #22d3ee, #818cf8, #22d3ee);
+      background-size: 200% 100%;
+      animation: selectBarSlide 2s linear infinite;
+      transform: translateY(0);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    `;
+    document.body.appendChild(bar);
+  }
+
+  // Pulsa o FAB para comunicar modo ativo
+  const fab = document.getElementById('mobileFab');
+  if (fab) {
+    fab.style.background = '#818cf8';
+    fab.style.boxShadow  = '0 4px 20px rgba(129,140,248,0.5)';
+    fab.textContent      = '✓';
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+function toggleSelecaoItem(file, cardEl) {
+  if (itensSelecionados.has(file.nome)) {
+    itensSelecionados.delete(file.nome);
+    cardEl.classList.remove('selected');
+  } else {
+    itensSelecionados.add(file.nome);
+    cardEl.classList.add('selected');
+  }
+  atualizarContadorSelecao();
+}
+
+async function carregarPastasParaMover(path = '/') {
+  const alvo = path || '/';
+  movePickerPath = alvo;
+  moveFolderCurrentPathEl.textContent = alvo;
+  moveFolderListEl.innerHTML = `<div class="move-folder-empty">Carregando pastas...</div>`;
+
+  try {
+    let response;
+    if (vaultMode) {
+      response = await fetch(
+        `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/listar?path=${encodeURIComponent(alvo)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Authorization': `Bearer ${vaultToken}` }
+        }
+      );
+    } else {
+      response = await fetch(
+        `${window.CONFIG.API_BASE_URL}api/atlas-drive/cloud?path=${encodeURIComponent(alvo)}`,
+        {
+          method: 'GET',
+          credentials: 'include'
+        }
+      );
+    }
+
+    if (!response.ok) throw new Error('Erro ao listar pastas');
+    const data = await response.json();
+    const files = Array.isArray(data?.arquivos) ? data.arquivos : (Array.isArray(data) ? data : []);
+    const pastas = files
+      .filter(item => item.tipo === 'pasta')
+      .sort((a, b) => (a.nome_original || a.nome).localeCompare(b.nome_original || b.nome));
+
+    if (!pastas.length) {
+      moveFolderListEl.innerHTML = `<div class="move-folder-empty">Nenhuma subpasta neste destino.</div>`;
+      return;
+    }
+
+    moveFolderListEl.innerHTML = '';
+    pastas.forEach((pasta) => {
+      const nome = pasta.nome_original || pasta.nome;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'move-folder-item';
+      row.innerHTML = `<span>📁 ${nome}</span><span>›</span>`;
+        
+      row.onclick = (e) => {
+        e.stopPropagation(); // 🔥 IMPEDE QUE O CLIQUE VAZE E LIMPE A SELEÇÃO
+          
+        // Mobile: prioriza caminho absoluto/relativo retornado pelo backend
+        const backendPath = (pasta.caminho_relativo || pasta.caminho || '').toString().trim();
+        const prox = backendPath
+          ? `/${normalizarCaminho(backendPath)}`
+          : (alvo === '/' ? `/${pasta.nome}` : `${alvo}/${pasta.nome}`);
+        carregarPastasParaMover(prox);
+          
+        // Feedback visual de navegação
+        row.style.opacity = '0.5';
+        row.style.pointerEvents = 'none';
+      };
+      moveFolderListEl.appendChild(row);
+    });
+  } catch (err) {
+    console.error('carregarPastasParaMover:', err);
+    moveFolderListEl.innerHTML = `<div class="move-folder-empty">Falha ao carregar pastas.</div>`;
+    showMobileToast('Nao foi possivel carregar as pastas.', 'error', 2200);
+  }
+}
+
+function abrirMoveFolderPicker() {
+  if (!isMobileViewport()) {
+    return;
+  }
+
+  if (!itensSelecionados.size) {
+    showMobileToast('Selecione pelo menos um item.', 'info', 1800);
+    return;
+  }
+
+  // DEPOIS:
+  movePickerPath = currentPath;
+  moveFolderPicker.classList.add('open');
+  carregarPastasParaMover(movePickerPath);
+}
+
+function fecharMoveFolderPicker() {
+  moveFolderPicker.classList.remove('open');
+}
+
+
+
+function _showMoveFeedback(tipo, count) {
+  // Feedback visual no botão confirmar do picker — sem toast
+  const btn = document.getElementById('moveFolderConfirmBtn');
+  if (!btn) return;
+
+  const configs = {
+    loading: { text: `Movendo ${count}...`,     color: '#22d3ee', disabled: true  },
+    success: { text: `✓ ${count} movido(s)`,     color: '#4ade80', disabled: false },
+    error:   { text: `✕ Falha em ${count}`,      color: '#f87171', disabled: false },
+    same:    { text: 'Já está aqui',             color: '#f59e0b', disabled: false },
+  };
+
+  const cfg = configs[tipo];
+  if (!cfg) return;
+
+  btn.textContent    = cfg.text;
+  btn.style.color    = cfg.color;
+  btn.disabled       = cfg.disabled;
+
+  if (tipo !== 'loading') {
+    setTimeout(() => {
+      btn.textContent  = 'Mover para cá';
+      btn.style.color  = '';
+      btn.disabled     = false;
+    }, 2000);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function executarMoverSelecionadosPara(destinoPath) {
+  const destinoBase = destinoPath || '/';
+
+  // Normaliza SEM barra inicial — padrão do backend
+  const destinoNorm = normalizarCaminho(destinoBase);  
+  const origemNorm  = normalizarCaminho(currentPath || '/'); 
+
+  const selecionados = Array.from(itensSelecionados);
+  if (!selecionados.length) return { sucesso: 0, falhas: 0 };
+
+  // Bloqueia só se destino E origem forem a mesma pasta
+  if (destinoNorm === origemNorm) {
+    _showMoveFeedback('same');
+    return { sucesso: 0, falhas: selecionados.length };
+  }
+
+  _showMoveFeedback('loading', selecionados.length);
+
+  const tarefas = selecionados.map((nomeItem) => {
+    // Busca o arquivo, mas aplica um fallback seguro se o estado se perder
+    const file = arquivosAtuais.find(f => f.nome === nomeItem);
+    const tipoItem = file ? (file.tipo === 'pasta' ? 'pasta' : 'arquivo') : 'arquivo';
+
+    // Construção de caminho BLINDADA (Mesma lógica usada no Drag and Drop do PC)
+    // Garante que não teremos barras duplas ou caminhos malformados
+    const origemFinal = normalizarCaminho(origemNorm + '/' + nomeItem);
+    const destinoFinal = normalizarCaminho(destinoNorm + '/' + nomeItem);
+
+    // Envia a requisição
+    return renameFile(origemFinal, destinoFinal, tipoItem, 'sim');
+  });
+
+  const resultados = await Promise.all(tarefas);
+  const sucesso = resultados.filter(Boolean).length;
+  const falhas  = resultados.length - sucesso;
+
+  if (sucesso > 0) {
+    _showMoveFeedback('success', sucesso);
+    setMobileSelectionMode(false);
+    fetchFiles(currentPath);
+  }
+  if (falhas > 0) {
+    _showMoveFeedback('error', falhas);
+  }
+
+  return { sucesso, falhas };
+}
+
+
 
 function atualizarContadorSelecao() {
   if (itensSelecionados.size === 0) {
@@ -753,16 +1075,118 @@ function atualizarContadorSelecao() {
     })
     .slice(0, 5);
 
-  selectionInfo.innerHTML = `
-    <div style="color:#22d3ee; margin-bottom:6px;">
-      ${itensSelecionados.size} item(s) selecionado(s)
-    </div>
-    <div style="font-size:12px; color:#94a3b8;">
+  const resumo = `
+    <div class="selection-info-title">${itensSelecionados.size} item(s) selecionado(s)</div>
+    <div class="selection-info-list">
       ${nomes.join('<br>--------------------<br>')}
       ${itensSelecionados.size > 5 ? '<br>...' : ''}
     </div>
   `;
+
+  if (!isMobileViewport()) {
+    selectionInfo.innerHTML = resumo;
+    return;
+  }
+
+  const qtd = itensSelecionados.size;
+  selectionInfo.innerHTML = `
+    <div class="selection-info-title">${qtd} item${qtd > 1 ? 's' : ''} selecionado${qtd > 1 ? 's' : ''}</div>
+    <div class="selection-info-actions">
+      <button class="selection-action-btn primary" data-selection-action="move" ${qtd === 0 ? 'disabled' : ''}>✂️ Mover</button>
+      <button class="selection-action-btn" data-selection-action="select-all">Todos</button>
+      <button class="selection-action-btn" data-selection-action="clear">Limpar</button>
+      <button class="selection-action-btn danger" data-selection-action="exit">✕ Sair</button>
+    </div>
+  `;
+
+  _atualizarIndicadorSelecao();
+
 }
+
+selectionInfo.addEventListener('click', (e) => {
+
+  e.stopPropagation(); // 🔥
+
+  const action = e.target?.dataset?.selectionAction;
+  if (!action) return;
+
+  if (action === 'clear') {
+    itensSelecionados.clear();
+    limparSelecaoVisual();
+    atualizarContadorSelecao();
+    if (isMobileViewport()) showMobileToast('Selecao limpa.', 'info', 1600);
+    return;
+  }
+
+  // DEPOIS:
+  if (action === 'select-all') {
+    // Garante que o modo seleção mobile está ativo antes de selecionar tudo
+    if (isMobileViewport() && !mobileSelectionMode) {
+      setMobileSelectionMode(true);
+    }
+    document.querySelectorAll('.file-card').forEach(card => {
+      const nome = card.dataset.nome;
+      if (!nome) return;
+      itensSelecionados.add(nome);
+      card.classList.add('selected');
+    });
+    atualizarContadorSelecao();
+    if (isMobileViewport()) showMobileToast('Todos os itens visíveis selecionados.', 'success', 1900);
+    return;
+  }
+
+  if (action === 'exit') {
+    setMobileSelectionMode(false);
+    return;
+  }
+
+  if (action === 'move') {
+    if (!isMobileViewport()) return;
+    abrirMoveFolderPicker();
+  }
+});
+
+if (moveFolderCloseBtn) moveFolderCloseBtn.onclick = fecharMoveFolderPicker;
+if (moveFolderCancelBtn) moveFolderCancelBtn.onclick = fecharMoveFolderPicker;
+if (moveFolderPicker) {
+  moveFolderPicker.addEventListener('click', (e) => {
+    if (e.target === moveFolderPicker) fecharMoveFolderPicker();
+  });
+}
+if (moveFolderRootBtn) moveFolderRootBtn.onclick = () => carregarPastasParaMover('/');
+if (moveFolderUpBtn) {
+  moveFolderUpBtn.onclick = () => {
+    if (movePickerPath === '/') return;
+    const partes = movePickerPath.split('/').filter(Boolean);
+    partes.pop();
+    const acima = '/' + partes.join('/');
+    carregarPastasParaMover(acima === '/' ? '/' : acima);
+  };
+}
+if (moveFolderConfirmBtn) {
+  moveFolderConfirmBtn.onclick = async () => {
+    const btnTxt = moveFolderConfirmBtn.textContent;
+    moveFolderConfirmBtn.disabled = true;
+    moveFolderConfirmBtn.textContent = 'Movendo...';
+    const resultadoMover = await executarMoverSelecionadosPara(movePickerPath);
+    moveFolderConfirmBtn.disabled = false;
+    moveFolderConfirmBtn.textContent = btnTxt;
+    if (resultadoMover?.sucesso > 0 || resultadoMover?.falhas === 0) {
+      fecharMoveFolderPicker();
+    }
+  };
+}
+
+window.addEventListener('resize', () => {
+  if (isMobileViewport()) return;
+
+  // A feature "Mover para pasta" e exclusiva do mobile.
+  // Ao sair do viewport mobile, garante que qualquer estado residual seja limpo.
+  fecharMoveFolderPicker();
+  if (mobileSelectionMode) {
+    setMobileSelectionMode(false);
+  }
+});
 
 
 
@@ -1010,10 +1434,13 @@ async function renameFile(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) 
     if (!response.ok) throw new Error('Erro ao renomear');
 
     fetchFiles(currentPath);
+    return true;
 
   } catch (error) {
     console.error('renameFile:', error);
-    alert('Erro ao renomear arquivo');
+    if (isMobileViewport()) showMobileToast('Falha ao mover/renomear item.', 'error', 2300);
+    else alert('Erro ao renomear arquivo');
+    return false;
   }
 }
 
@@ -1176,6 +1603,13 @@ let _previewTouchStart = 0;
 function abrirMenuContexto(e, nome, nomeOriginal) {
   e.preventDefault();
 
+  const mobileUploadOption = document.getElementById('mobileUploadOption');
+  const mobileSelectOption = document.getElementById('mobileSelectOption');
+  const mobileMoveOption = document.getElementById('mobileMoveOption');
+  if (mobileUploadOption) mobileUploadOption.style.display = 'none';
+  if (mobileSelectOption) mobileSelectOption.style.display = 'none';
+  if (mobileMoveOption) mobileMoveOption.style.display = 'none';
+
   const caminho_relativo = currentPath === '/' ? nome : currentPath + '/' + nome;
 
   // Posiciona primeiro invisível
@@ -1188,6 +1622,7 @@ function abrirMenuContexto(e, nome, nomeOriginal) {
 
   // ativa animação
   contextMenu.classList.add('active');
+  document.body.classList.add('context-menu-open');
 
   // DOWNLOAD
   downloadOption.onclick = () => {
@@ -1220,6 +1655,13 @@ function abrirMenuContexto(e, nome, nomeOriginal) {
 function abrirMenuContextoPasta(e, nome) {
   e.preventDefault();
 
+  const mobileUploadOption = document.getElementById('mobileUploadOption');
+  const mobileSelectOption = document.getElementById('mobileSelectOption');
+  const mobileMoveOption = document.getElementById('mobileMoveOption');
+  if (mobileUploadOption) mobileUploadOption.style.display = 'none';
+  if (mobileSelectOption) mobileSelectOption.style.display = 'none';
+  if (mobileMoveOption) mobileMoveOption.style.display = 'none';
+
   const caminho_relativo = currentPath === '/' ? nome : currentPath + '/' + nome;
 
   // posição
@@ -1229,6 +1671,7 @@ function abrirMenuContextoPasta(e, nome) {
   contextMenu.classList.remove('active');
   void contextMenu.offsetWidth;
   contextMenu.classList.add('active');
+  document.body.classList.add('context-menu-open');
 
   // 🔥 REMOVE DOWNLOAD (não faz sentido pra pasta)
   downloadOption.style.display = 'none';
@@ -1259,12 +1702,20 @@ function abrirMenuContextoPasta(e, nome) {
 function abrirMenuContextoVazio(e) {
   e.preventDefault();
 
+  const mobileUploadOption = document.getElementById('mobileUploadOption');
+  const mobileSelectOption = document.getElementById('mobileSelectOption');
+  const mobileMoveOption = document.getElementById('mobileMoveOption');
+  if (mobileUploadOption) mobileUploadOption.style.display = 'none';
+  if (mobileSelectOption) mobileSelectOption.style.display = 'none';
+  if (mobileMoveOption) mobileMoveOption.style.display = 'none';
+
   contextMenu.style.top  = `${e.pageY}px`;
   contextMenu.style.left = `${e.pageX}px`;
 
   contextMenu.classList.remove('active');
   void contextMenu.offsetWidth;
   contextMenu.classList.add('active');
+  document.body.classList.add('context-menu-open');
 
   visualizarItem.style.display = 'none';
   downloadOption.style.display = 'none';
@@ -1274,12 +1725,14 @@ function abrirMenuContextoVazio(e) {
   criarArquivo.style.display = 'block';
   criarPasta.style.display   = 'block';
 
-  // ── CRIAR PASTA ──────────────────────────────
+  configurarAcoesCriacaoContexto();
+}
+
+function configurarAcoesCriacaoContexto() {
   criarPasta.onclick = () => {
     fecharMenuContexto();
 
     if (vaultMode) {
-      // VAULT: abre modal de nome
       arquivoParaRenomear = { nomeAtual: '', caminho_relativo: null, tipo: 'vault-nova-pasta' };
       renameInput.value = 'Nova Pasta';
       renameInput.placeholder = 'Nome da pasta...';
@@ -1289,7 +1742,6 @@ function abrirMenuContextoVazio(e) {
       return;
     }
 
-    // Drive normal
     fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/criar-nova-Pasta`, {
       method: 'POST',
       credentials: 'include',
@@ -1297,11 +1749,16 @@ function abrirMenuContextoVazio(e) {
       body: JSON.stringify({ caminho_da_pasta: currentPath })
     })
     .then(res => { if (!res.ok) throw new Error(); return res.json(); })
-    .then(() => fetchFiles(currentPath))
-    .catch(() => alert('Erro ao criar pasta'));
+    .then(() => {
+      fetchFiles(currentPath);
+      if (isMobileViewport()) showMobileToast('Pasta criada com sucesso.', 'success', 1800);
+    })
+    .catch(() => {
+      if (isMobileViewport()) showMobileToast('Falha ao criar pasta.', 'error', 2200);
+      else alert('Erro ao criar pasta');
+    });
   };
 
-  // ── CRIAR DOCUMENTO TXT ──────────────────────
   criarArquivo.onclick = () => {
     fecharMenuContexto();
 
@@ -1320,7 +1777,7 @@ function abrirMenuContextoVazio(e) {
 
 // Esconde o menu se o usuário clicar em qualquer outro lugar da tela
 document.addEventListener('click', (e) => {
-  if (!contextMenu.contains(e.target)) {
+  if (!contextMenu.contains(e.target) && !mobileFabEl?.contains(e.target)) {
     fecharMenuContexto();
   }
 });
@@ -1328,6 +1785,14 @@ document.addEventListener('click', (e) => {
 
 function fecharMenuContexto() {
   contextMenu.classList.remove('active');
+  document.body.classList.remove('context-menu-open');
+
+  const mobileUploadOption = document.getElementById('mobileUploadOption');
+  const mobileSelectOption = document.getElementById('mobileSelectOption');
+  const mobileMoveOption = document.getElementById('mobileMoveOption');
+  if (mobileUploadOption) mobileUploadOption.style.display = 'none';
+  if (mobileSelectOption) mobileSelectOption.style.display = 'none';
+  if (mobileMoveOption) mobileMoveOption.style.display = 'none';
 
   // restaura padrão
   downloadOption.style.display = 'block';
@@ -1506,16 +1971,31 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  // 🔥 A MÁGICA AQUI: Se o elemento que recebeu o clique não estiver mais no DOM 
+  // (ex: foi apagado ao navegar na lista do picker), nós ignoramos o clique.
+  if (!document.body.contains(e.target)) return;
+
   const clicouEmArquivo = e.target.closest('.file-card');
   const clicouMenu      = e.target.closest('.context-menu');
   const clicouModal     = e.target.closest('.rename-modal');
   const clicouTransfer  = e.target.closest('#transferPanel, #vaultTransferPanel');
+  const clicouMovePicker = e.target.closest('.move-folder-picker');
 
-  if (!clicouEmArquivo && !clicouMenu && !clicouModal && !clicouTransfer) {
-    itensSelecionados.clear();
-    limparSelecaoVisual();
-    atualizarContadorSelecao();
+
+  // 🔥 ADICIONE ESTA LINHA: Protege botões de ação que podem estar fora do transferPanel mas agem sobre ele
+  const clicouBotaoAcao  = e.target.closest('.fab-menu, .btn-acao-multipla'); 
+
+  // Se NÃO clicou em nada disso, aí sim limpamos
+  if (!clicouEmArquivo && !clicouMenu && !clicouModal && !clicouTransfer && !clicouMovePicker && !clicouBotaoAcao) {
+    // Só limpa se não estivermos no meio de uma navegação de mover
+    if (!document.querySelector('.move-folder-picker.active')) {
+        itensSelecionados.clear();
+        limparSelecaoVisual();
+        atualizarContadorSelecao();
+    }
   }
+
+
 });
 
 
@@ -1821,14 +2301,25 @@ window.fetchFiles = async function(path = '/') {
 // Precisa sobrescrever o onclick depois que o script carrega
 const confirmRenameOriginal = confirmRename.onclick;
 
-confirmRename.onclick = () => {
+confirmRename.onclick = async () => {
   if (!arquivoParaRenomear) return;
 
   let novoNome = renameInput.value.trim();
-  if (!novoNome) { alert('Nome inválido'); return; }
+  if (!novoNome) {
+    if (isMobileViewport()) showMobileToast('Informe um destino valido para mover.', 'error', 2400);
+    else alert('Nome inválido');
+    return;
+  }
 
   // 🔐 verifica se é código vault
   if (interceptarVault(novoNome)) {
+    fecharModalRenomear();
+    return;
+  }
+
+  // ── MOBILE: mover selecionados ─────────────────
+  if (arquivoParaRenomear.tipo === 'mobile-mover') {
+    await executarMoverSelecionadosPara(novoNome);
     fecharModalRenomear();
     return;
   }
@@ -1962,17 +2453,20 @@ async function renameFileVault(caminho_relativo, novo_nome, pasta_ou_arquivo, mo
 
     if (response.status === 401 || response.status === 403) {
       sairModoVault();
-      return;
+      return false;
     }
 
     if (!response.ok) throw new Error('Erro ao renomear no vault');
 
     // recarrega vault no caminho atual
     fetchVaultFiles(currentPath);
+    return true;
 
   } catch (error) {
     console.error('renameFileVault:', error);
-    alert('Erro ao renomear item no vault');
+    if (isMobileViewport()) showMobileToast('Falha ao mover/renomear item do vault.', 'error', 2300);
+    else alert('Erro ao renomear item no vault');
+    return false;
   }
 }
 
@@ -2756,13 +3250,13 @@ const sidebarEl        = document.querySelector('.sidebar');
 
 function abrirSidebar() {
   sidebarEl.classList.add('open');
-  sidebarBackdrop.style.display = 'block';
+  sidebarBackdrop.classList.add('active');
   document.body.style.overflow  = 'hidden';
 }
 
 function fecharSidebar() {
   sidebarEl.classList.remove('open');
-  sidebarBackdrop.style.display = 'none';
+  sidebarBackdrop.classList.remove('active');
   document.body.style.overflow  = '';
 }
 
@@ -2771,6 +3265,13 @@ mobileMenuBtn.addEventListener('click', () => {
 });
 
 sidebarBackdrop.addEventListener('click', fecharSidebar);
+
+// Evita estado "travado" ao trocar de orientação/tamanho da tela
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) {
+    fecharSidebar();
+  }
+});
 
 // Fecha sidebar ao navegar (mobile)
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -2783,18 +3284,38 @@ document.querySelectorAll('.nav-item').forEach(item => {
 // ── LONG PRESS → CONTEXT MENU (substitui drag no mobile) ──
 function configurarLongPress(divEl, file) {
   let timer = null;
-  let ativou = false; // flag: long press disparou?
-  const MS = 500;
+  let ativou = false;
+  let startX = 0;
+  let startY = 0;
+  const MS = 480;
 
   divEl.addEventListener('touchstart', (e) => {
     ativou = false;
-    // Cancela scroll nativo durante long press para o timer disparar corretamente
-    const startX = e.touches[0].clientX;
-    const startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+
+    // Feedback visual: escurece levemente ao pressionar
+    divEl.style.transition = 'transform 0.1s, opacity 0.1s';
+
     timer = setTimeout(() => {
       ativou = true;
-      if (navigator.vibrate) navigator.vibrate(30);
+      if (navigator.vibrate) navigator.vibrate([20, 10, 20]); // duplo pulso háptico
 
+      // Feedback visual de long press confirmado
+      divEl.style.transform = 'scale(0.97)';
+      divEl.style.opacity = '0.85';
+      setTimeout(() => {
+        divEl.style.transform = '';
+        divEl.style.opacity = '';
+      }, 200);
+
+      if (isMobileViewport()) {
+        // Abre o bottom sheet de ações ricas
+        abrirAcoesItemMobile(file, divEl);
+        return;
+      }
+
+      // Desktop: comportamento original
       itensSelecionados.clear();
       limparSelecaoVisual();
       itensSelecionados.add(file.nome);
@@ -2808,7 +3329,6 @@ function configurarLongPress(divEl, file) {
         pageY: touch.clientY,
         target: divEl
       };
-
       if (file.tipo === 'pasta') abrirMenuContextoPasta(fakeEvent, file.nome);
       else abrirMenuContexto(fakeEvent, file.nome, file.nome_original);
 
@@ -2817,19 +3337,228 @@ function configurarLongPress(divEl, file) {
 
   divEl.addEventListener('touchend', () => {
     clearTimeout(timer); timer = null;
+    divEl.style.transform = '';
+    divEl.style.opacity = '';
   });
+
   divEl.addEventListener('touchmove', (e) => {
     const dx = Math.abs(e.touches[0].clientX - startX);
     const dy = Math.abs(e.touches[0].clientY - startY);
-    // Só cancela se o dedo realmente moveu (evita falsos cancelamentos)
-    if (dx > 10 || dy > 10) { clearTimeout(timer); timer = null; }
+    if (dx > 10 || dy > 10) {
+      clearTimeout(timer); timer = null;
+      divEl.style.transform = '';
+      divEl.style.opacity = '';
+    }
   });
 
-  // IMPORTANTE: bloqueia o click se foi long press
   divEl.addEventListener('click', (e) => {
     if (ativou) { e.stopPropagation(); ativou = false; }
   }, true);
 }
+
+
+// ── BOTTOM SHEET DE AÇÕES — MOBILE LONG PRESS ──────────────
+function abrirAcoesItemMobile(file, cardEl) {
+  // Remove sheet anterior se existir
+  const anterior = document.getElementById('mobileActionSheet');
+  if (anterior) anterior.remove();
+  const backdropAnterior = document.getElementById('mobileActionBackdrop');
+  if (backdropAnterior) backdropAnterior.remove();
+
+  const nomeExibido = file.nome_original || file.nome;
+  const caminho = currentPath === '/' ? file.nome : `${currentPath}/${file.nome}`;
+  const isTxt = nomeExibido.toLowerCase().match(/\.(txt|md)$/);
+  const isPasta = file.tipo === 'pasta';
+  const isImagem = nomeExibido.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/);
+
+  // Backdrop
+  const backdrop = document.createElement('div');
+  backdrop.id = 'mobileActionBackdrop';
+  backdrop.style.cssText = `
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.18s ease;
+  `;
+
+  // Sheet
+  const sheet = document.createElement('div');
+  sheet.id = 'mobileActionSheet';
+  sheet.style.cssText = `
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+    background: var(--bg-card, #1a2035);
+    border-radius: 20px 20px 0 0;
+    padding: 0 0 env(safe-area-inset-bottom, 16px);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+    animation: slideUpSheet 0.28s cubic-bezier(0.34,1.26,0.64,1);
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  `;
+
+  // Cabeçalho do sheet
+  const icone = getFileIcon(nomeExibido, file.tipo);
+  sheet.innerHTML = `
+    <style>
+      @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .mas-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 99px; margin: 12px auto 0; }
+      .mas-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .mas-header-icon { font-size: 28px; flex-shrink: 0; }
+      .mas-header-name { font-size: 15px; font-weight: 600; color: var(--text-primary, #e2e8f0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 60px); }
+      .mas-header-type { font-size: 11px; color: var(--text-muted, #64748b); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+      .mas-actions { padding: 8px 12px 8px; }
+      .mas-action { display: flex; align-items: center; gap: 16px; padding: 14px 12px; border-radius: 12px; cursor: pointer; transition: background 0.15s; -webkit-tap-highlight-color: transparent; border: none; width: 100%; background: transparent; text-align: left; }
+      .mas-action:active { background: rgba(255,255,255,0.06); transform: scale(0.98); }
+      .mas-action-icon { font-size: 20px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; flex-shrink: 0; }
+      .mas-action-text { font-size: 15px; color: var(--text-primary, #e2e8f0); font-family: 'Inter', sans-serif; }
+      .mas-action-sub { font-size: 12px; color: var(--text-muted, #64748b); margin-top: 1px; }
+      .mas-action.danger .mas-action-text { color: #f87171; }
+      .mas-action.danger .mas-action-icon { background: rgba(248,113,113,0.12); }
+      .mas-action.primary .mas-action-icon { background: rgba(34,211,238,0.12); }
+      .mas-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 12px; }
+      .mas-select-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); color: #22d3ee; font-size: 11px; padding: 3px 10px; border-radius: 99px; margin-left: 8px; font-family: 'Inter', sans-serif; }
+    </style>
+    <div class="mas-handle"></div>
+    <div class="mas-header">
+      <div class="mas-header-icon">${icone}</div>
+      <div>
+        <div class="mas-header-name">${nomeExibido}</div>
+        <div class="mas-header-type">${isPasta ? 'Pasta' : (file.tamanho ? formatarTamanho(file.tamanho) : 'Arquivo')}</div>
+      </div>
+    </div>
+    <div class="mas-actions" id="masActionList"></div>
+  `;
+
+  const actionList = sheet.querySelector('#masActionList');
+
+  function addAction(emoji, bg, label, sub, cls, onClick) {
+    const btn = document.createElement('button');
+    btn.className = `mas-action ${cls || ''}`;
+    btn.innerHTML = `
+      <div class="mas-action-icon" style="background:${bg};">${emoji}</div>
+      <div>
+        <div class="mas-action-text">${label}</div>
+        ${sub ? `<div class="mas-action-sub">${sub}</div>` : ''}
+      </div>
+    `;
+    btn.onclick = () => {
+      fecharSheet();
+      setTimeout(onClick, 120); // pequeno delay para o sheet fechar primeiro
+    };
+    actionList.appendChild(btn);
+  }
+
+  function addDivider() {
+    const d = document.createElement('div');
+    d.className = 'mas-divider';
+    actionList.appendChild(d);
+  }
+
+  // ── Ações conforme tipo ──────────────────
+  if (!isPasta) {
+    addAction('👁', 'rgba(99,179,237,0.12)', 'Visualizar', 'Abrir pré-visualização', 'primary', () => {
+      visualizarArquivo(caminho, nomeExibido);
+    });
+  }
+
+  if (isPasta) {
+    addAction('📂', 'rgba(34,211,238,0.12)', 'Abrir pasta', null, 'primary', () => {
+      openItem(file.nome, 'pasta');
+    });
+  }
+
+  if (!isPasta) {
+    addAction('⬇️', 'rgba(74,222,128,0.12)', 'Baixar arquivo', null, '', () => {
+      downloadFile(caminho, nomeExibido);
+    });
+  }
+
+  if (isTxt) {
+    addDivider();
+    addAction('✏️', 'rgba(251,191,36,0.12)', 'Editar conteúdo', 'Abrir no editor de texto', '', () => {
+      if (vaultMode) abrirEditorTxtVault(caminho, nomeExibido);
+      else abrirEditorTxt(caminho, nomeExibido);
+    });
+  }
+
+  addDivider();
+
+  addAction('✂️', 'rgba(167,139,250,0.12)', 'Mover para...', 'Selecionar pasta de destino', '', () => {
+    // Seleciona só esse item e abre o picker
+    itensSelecionados.clear();
+    limparSelecaoVisual();
+    itensSelecionados.add(file.nome);
+    cardEl.classList.add('selected');
+    atualizarContadorSelecao();
+    abrirMoveFolderPicker();
+  });
+
+  addAction('✏️', 'rgba(148,163,184,0.12)', 'Renomear', null, '', () => {
+    const tipo = isPasta ? 'pasta' : 'arquivo';
+    abrirModalRenomear(nomeExibido, caminho, tipo);
+  });
+
+  addDivider();
+
+  // Seleção múltipla
+  const jaSelec = itensSelecionados.has(file.nome);
+  addAction(
+    mobileSelectionMode ? '☑️' : '⊞',
+    'rgba(34,211,238,0.08)',
+    mobileSelectionMode ? (jaSelec ? 'Desmarcar este item' : 'Adicionar à seleção') : 'Selecionar múltiplos',
+    mobileSelectionMode ? null : 'Ativa modo de seleção em lote',
+    '',
+    () => {
+      if (!mobileSelectionMode) setMobileSelectionMode(true);
+      toggleSelecaoItem(file, cardEl);
+    }
+  );
+
+  addDivider();
+
+  addAction('🗑️', 'rgba(248,113,113,0.12)', 'Deletar', isPasta ? 'Apaga a pasta e todo conteúdo' : 'Remove permanentemente', 'danger', () => {
+    // Confirmação haptica + visual leve
+    if (navigator.vibrate) navigator.vibrate(40);
+    const tipo = isPasta ? 'pasta' : 'arquivo';
+    if (confirm(`Deletar "${nomeExibido}"?`)) {
+      deleteFile(caminho, tipo);
+    }
+  });
+
+  // Padding final para safe area
+  const pad = document.createElement('div');
+  pad.style.height = '8px';
+  sheet.appendChild(pad);
+
+  function fecharSheet() {
+    sheet.style.animation = 'none';
+    sheet.style.transform = 'translateY(100%)';
+    sheet.style.transition = 'transform 0.22s ease';
+    backdrop.style.opacity = '0';
+    backdrop.style.transition = 'opacity 0.22s';
+    setTimeout(() => { sheet.remove(); backdrop.remove(); }, 230);
+  }
+
+  backdrop.onclick = fecharSheet;
+
+  // Swipe down fecha
+  let sheetTouchY = 0;
+  sheet.addEventListener('touchstart', e => { sheetTouchY = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener('touchend', e => {
+    if (e.changedTouches[0].clientY - sheetTouchY > 70) fecharSheet();
+  });
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+}
+
+
+
+
+
+
+
 
 
 // ── PATCH: renderFiles também configura long press ──
@@ -2883,6 +3612,143 @@ document.addEventListener('contextmenu', (e) => {
     e.preventDefault(); // cancela menu nativo do browser
   }
 });
+
+if (mobileFabEl) {
+  mobileFabEl.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isMobileViewport()) {
+      uploadFile();
+      return;
+    }
+
+    abrirFabSheetMobile();
+  });
+}
+
+function abrirFabSheetMobile() {
+  const anterior = document.getElementById('fabActionSheet');
+  if (anterior) { anterior.remove(); document.getElementById('fabActionBackdrop')?.remove(); return; }
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'fabActionBackdrop';
+  backdrop.style.cssText = `
+    position: fixed; inset: 0; z-index: 9996;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.18s ease;
+  `;
+
+  const sheet = document.createElement('div');
+  sheet.id = 'fabActionSheet';
+  sheet.style.cssText = `
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9997;
+    background: var(--bg-card, #1a2035);
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+    animation: slideUpSheet 0.28s cubic-bezier(0.34,1.26,0.64,1);
+  `;
+
+  sheet.innerHTML = `
+    <div style="width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:99px;margin:12px auto 0;"></div>
+    <div style="padding:14px 20px 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted,#64748b);font-family:'Inter',sans-serif;font-weight:600;">Ações</div>
+    <div id="fabSheetActions" style="padding:0 12px 12px;"></div>
+  `;
+
+  const actionsEl = sheet.querySelector('#fabSheetActions');
+
+  function addFabAction(emoji, label, sub, onClick) {
+    const btn = document.createElement('button');
+    btn.style.cssText = `
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 12px; border-radius: 12px; cursor: pointer;
+      transition: background 0.15s; width: 100%; background: transparent;
+      border: none; text-align: left; -webkit-tap-highlight-color: transparent;
+    `;
+    btn.innerHTML = `
+      <div style="font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,0.05);flex-shrink:0;">${emoji}</div>
+      <div>
+        <div style="font-size:15px;color:var(--text-primary,#e2e8f0);font-family:'Inter',sans-serif;">${label}</div>
+        ${sub ? `<div style="font-size:12px;color:var(--text-muted,#64748b);margin-top:2px;font-family:'Inter',sans-serif;">${sub}</div>` : ''}
+      </div>
+    `;
+    btn.addEventListener('touchstart', () => { btn.style.background = 'rgba(255,255,255,0.06)'; }, { passive: true });
+    btn.addEventListener('touchend', () => { btn.style.background = ''; }, { passive: true });
+    btn.onclick = () => { fecharFabSheet(); setTimeout(onClick, 100); };
+    actionsEl.appendChild(btn);
+  }
+
+  function addFabDivider() {
+    const d = document.createElement('div');
+    d.style.cssText = 'height:1px;background:rgba(255,255,255,0.06);margin:4px 0;';
+    actionsEl.appendChild(d);
+  }
+
+  addFabAction('⬆️', 'Upload de arquivo', 'Enviar arquivos para esta pasta', () => uploadFile());
+  addFabAction('📁', 'Nova pasta', 'Criar pasta neste diretório', () => {
+    if (vaultMode) {
+      arquivoParaRenomear = { nomeAtual: '', caminho_relativo: null, tipo: 'vault-nova-pasta' };
+      renameInput.value = 'Nova Pasta';
+      renameInput.placeholder = 'Nome da pasta...';
+      renameModal.querySelector('h3').textContent = 'Nova pasta';
+      renameModal.classList.add('active');
+      setTimeout(() => { renameInput.focus(); renameInput.select(); }, 100);
+      return;
+    }
+    fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/criar-nova-Pasta`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_da_pasta: currentPath })
+    })
+    .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+    .then(() => { fetchFiles(currentPath); showMobileToast('Pasta criada ✓', 'success', 1800); })
+    .catch(() => showMobileToast('Falha ao criar pasta.', 'error', 2200));
+  });
+
+  addFabAction('📄', 'Novo arquivo de texto', 'Criar documento .txt', () => {
+    const tipoFluxo = vaultMode ? 'vault-novo-txt' : 'novo-txt';
+    arquivoParaRenomear = { nomeAtual: '', caminho_relativo: null, tipo: tipoFluxo };
+    renameInput.value = 'novo-arquivo.txt';
+    renameInput.placeholder = 'nome-do-arquivo.txt';
+    renameModal.querySelector('h3').textContent = 'Novo arquivo de texto';
+    renameModal.classList.add('active');
+    setTimeout(() => { renameInput.focus(); renameInput.select(); }, 100);
+  });
+
+  addFabDivider();
+
+  addFabAction(
+    mobileSelectionMode ? '✕' : '⊞',
+    mobileSelectionMode ? 'Sair da seleção múltipla' : 'Selecionar múltiplos itens',
+    mobileSelectionMode ? `${itensSelecionados.size} item(s) selecionado(s)` : 'Marcar itens para mover ou deletar',
+    () => setMobileSelectionMode(!mobileSelectionMode)
+  );
+
+  if (mobileSelectionMode && itensSelecionados.size > 0) {
+    addFabAction('✂️', `Mover ${itensSelecionados.size} item(s)`, 'Escolher pasta de destino', () => abrirMoveFolderPicker());
+  }
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+
+  function fecharFabSheet() {
+    sheet.style.transform = 'translateY(100%)';
+    sheet.style.transition = 'transform 0.22s ease';
+    backdrop.style.opacity = '0';
+    backdrop.style.transition = 'opacity 0.22s';
+    setTimeout(() => { sheet.remove(); backdrop.remove(); }, 230);
+  }
+
+  backdrop.onclick = fecharFabSheet;
+
+  let fabTouchY = 0;
+  sheet.addEventListener('touchstart', e => { fabTouchY = e.touches[0].clientY; }, { passive: true });
+  sheet.addEventListener('touchend', e => {
+    if (e.changedTouches[0].clientY - fabTouchY > 70) fecharFabSheet();
+  });
+}
 
 
 

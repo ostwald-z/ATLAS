@@ -175,33 +175,11 @@
   </div>
 
 
-  <div id="selectionBox" style="
-    position: fixed;
-    border: 1px dashed #22d3ee;
-    background: rgba(34, 211, 238, 0.1);
-    pointer-events: none;
-    display: none;
-    z-index: 9999;
-  "></div>
+  <div id="selectionBox"></div>
 
 
 
-  <div id="selectionInfo" style="
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #0f172a;
-    border: 1px solid rgba(34,211,238,0.2);
-    border-radius: 12px;
-    padding: 12px 16px;
-    color: #e2e8f0;
-    font-size: 13px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    display: none;
-    max-width: 260px;
-    z-index: 9999;
-  ">
-  </div>
+  <div id="selectionInfo"></div>
 
 
   <!-- PAINEL DE TRANSFERÊNCIAS — mini indicador -->
@@ -343,7 +321,29 @@
 
 
   <!-- FAB MOBILE: upload rápido -->
-  <button id="mobileFab" onclick="uploadFile()" title="Upload">+</button>
+  <button id="mobileFab" title="Ações rápidas">+</button>
+
+  <!-- PICKER MOBILE: escolher pasta de destino -->
+  <div id="moveFolderPicker" class="move-folder-picker">
+    <div class="move-folder-sheet">
+      <div class="move-folder-header">
+        <div class="move-folder-title-wrap">
+          <div class="move-folder-title">Mover para pasta</div>
+          <div id="moveFolderCurrentPath" class="move-folder-current-path">/</div>
+        </div>
+        <button id="moveFolderCloseBtn" class="move-folder-close-btn" type="button">✕</button>
+      </div>
+      <div class="move-folder-toolbar">
+        <button id="moveFolderUpBtn" class="move-folder-tool-btn" type="button">Subir pasta</button>
+        <button id="moveFolderRootBtn" class="move-folder-tool-btn" type="button">Ir para raiz</button>
+      </div>
+      <div id="moveFolderList" class="move-folder-list"></div>
+      <div class="move-folder-footer">
+        <button id="moveFolderCancelBtn" class="move-folder-footer-btn" type="button">Cancelar</button>
+        <button id="moveFolderConfirmBtn" class="move-folder-footer-btn primary" type="button">Mover para cá</button>
+      </div>
+    </div>
+  </div>
 
 
 
