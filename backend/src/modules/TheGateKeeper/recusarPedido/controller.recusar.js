@@ -5,7 +5,9 @@ async function deletarForm(req,res,next) {
 
         const id = req.params.id
 
-        const resultado = await service.deletarForm(id)
+        const httpInfo = req.httpInfo
+
+        const resultado = await service.deletarForm(id, httpInfo)
 
         res.status(200).json({
             message: "Pedido removido com sucesso! ID: " + id

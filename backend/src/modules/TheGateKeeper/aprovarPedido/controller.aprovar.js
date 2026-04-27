@@ -5,7 +5,11 @@ async function aprovarForm(req,res,next) {
 
         const id = req.params.id
 
-        const resultado = await service.aprovarForm(id)
+        const id_autor = req.user.id
+
+        const httpInfo = req.httpInfo
+
+        const resultado = await service.aprovarForm(id, id_autor, httpInfo)
 
         res.status(200).json({
             message: "Usuário Criado com sucesso!",

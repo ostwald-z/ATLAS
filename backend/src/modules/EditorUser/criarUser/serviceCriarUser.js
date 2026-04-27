@@ -6,6 +6,8 @@ const validator = require("validator")
 const logCreateAttemptive = require("./loggerCREATE")
 
 
+const {notifyAdmin} = require("../../../utils/telegram_notify")
+
 
 async function criarUser(user,senha,email, MagicWordCriar,MagicWordRole, obs, chaveNoPending, nome_completo, httpInfo) {
     
@@ -172,7 +174,31 @@ async function criarUser(user,senha,email, MagicWordCriar,MagicWordRole, obs, ch
 
 
     logCreateAttemptive.logCreateAttemptive("sucesso", "Enviou formulário normal corretamente, com CRIAR KEY correto - sem chave atlas especial", httpInfo, user, email, nome_completo, obs, MagicWordRole, MagicWordCriar, chaveNoPending)
+    
     const resultado = await repo.enviarParaAprovacao(userLimpo, senhaHash, emailLimpo, "user", obs, nome_completo)
+
+
+    // NOTIFICA VIA TELEGRAM.
+    notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Criar Usuário<b>
+--------------------------
+<b>SISTEMA:</b> Atlas System
+<b>AÇÃO:</b> Criar Usuário
+<b>USUÁRIO:</b> ${resultado.insertId} -- ${userLimpo}
+<b>STATUS:</b> Sucesso, Enviado para aprovação.
+
+<b>Origem da ação:</b>
+IP: ${httpInfo?.ip}
+Localização: ${httpInfo?.location}
+
+<pre> userAgent: ${httpInfo?.userAgent} </pre>
+--------------------------
+
+<i> 📅 *Enviado em: ${new Date().toLocaleString('pt-BR')} </i>
+
+`)
+    
+    
+
     return resultado;
 }
 

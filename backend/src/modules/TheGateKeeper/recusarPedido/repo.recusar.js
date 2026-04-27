@@ -8,4 +8,15 @@ async function deletarForm(id) {
 }
 
 
-module.exports = {deletarForm}
+
+async function buscarID(id) {
+    const comandosql = "SELECT * FROM usuarios WHERE id = ?"
+    const valores = [id]
+    const [resultado] = await sql.query(comandosql, valores)
+
+    return resultado
+
+}
+
+
+module.exports = {deletarForm, buscarID}

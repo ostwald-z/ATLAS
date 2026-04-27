@@ -14,6 +14,8 @@ const controllerUpdateForm = require("./editarPedido/controller.editarPedido")
 //ROTA para VALIDAR pedidos de criação de usuario
 
 
+const {httpInfoMiddleware} = require("../../middlewares/httpInfoGet/httpInfo")
+
 //rota para listar os pedidos
 rotaKeeper.get("/", authMiddle, roleMiddle("admin"),controllerTodosPedidos.listarTodosPedidos)
 
@@ -23,11 +25,11 @@ rotaKeeper.get("/:id", authMiddle, roleMiddle("admin"), controllerListarPedido.l
 
 
 //rota para deletar pedido
-rotaKeeper.delete("/:id", authMiddle, roleMiddle("admin"), controllerDeletarForm.deletarForm)
+rotaKeeper.delete("/:id", httpInfoMiddleware, authMiddle, roleMiddle("admin"), controllerDeletarForm.deletarForm)
 
 
 //rota para aprovar pedido
-rotaKeeper.post("/:id", authMiddle, roleMiddle("admin"), controllerAprovarForm.aprovarForm)
+rotaKeeper.post("/:id", httpInfoMiddleware, authMiddle, roleMiddle("admin"), controllerAprovarForm.aprovarForm)
 
 
 //rota para EDITAR pedido ANTES de aprovar

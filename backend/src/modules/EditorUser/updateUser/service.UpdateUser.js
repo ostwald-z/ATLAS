@@ -6,6 +6,9 @@ const bcrypt = require("bcrypt")
 const logUpdate = require("./updateLOGGER")
 
 
+const {notifyAdmin} = require("../../../utils/telegram_notify")
+
+
 //fazer patch aqui
 
 async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser, nome_completo, httpInfo) {
@@ -238,6 +241,37 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
                 httpInfo,     
             });
 
+                const [autor] = await repo.buscarPorId(idUser)
+                const [usuario] = await repo.buscarPorId(idLimpo)
+
+                // NOTIFICA VIA TELEGRAM.
+                notifyAdmin(`🚀 **NOVO LOG DE SISTEMA: Editar Usuário**
+            --------------------------
+            **SISTEMA:** Atlas System
+            **AÇÃO**: Editar Usuário
+            **USUÁRIO:** ${idLimpo} -- ${usuario.user}
+            **STATUS:** Sucesso
+            **AUTOR:** ${idUser} -- ${autor.user}
+            --------------------------
+
+            Mudanças:
+
+            ${changes}
+
+            --------------------------
+            OBS: O usuário foi editado normalmente
+
+
+            **Origem da ação:**
+            IP: ${httpInfo?.ip}
+            Localização: ${httpInfo?.location}
+            userAgent: ${httpInfo?.userAgent}
+            --------------------------`)
+
+
+
+
+
             return resultado;
 
         }
@@ -263,6 +297,34 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
         changes,
         httpInfo
     });
+
+
+    const [autor] = await repo.buscarPorId(idUser)
+    const [usuario] = await repo.buscarPorId(idLimpo)
+
+    // NOTIFICA VIA TELEGRAM.
+    notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Editar Usuário</b>
+--------------------------
+<b>SISTEMA:</b> Atlas System
+<b>AÇÃO:</b> Editar Usuário
+<b>USUÁRIO:</b> ${idLimpo} -- ${usuario.user}
+<b>STATUS:</b> Sucesso
+<b>AUTOR:</b> ${idUser} -- ${autor.user}
+--------------------------
+
+OBS: O usuário foi editado normalmente
+
+<b>Origem da ação:</b>
+IP: ${httpInfo?.ip}
+Localização: ${httpInfo?.location}
+
+<pre>${httpInfo?.userAgent}</pre>
+--------------------------
+
+<i>📅 Enviado em: ${new Date().toLocaleString('pt-BR')}</i>
+`);
+
+    
 
 
     return resultado;

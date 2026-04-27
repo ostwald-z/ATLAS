@@ -42,5 +42,15 @@ async function deletarForm(id) {
 }
 
 
+async function buscarID(id) {
+    const comandosql = "SELECT * FROM usuarios WHERE id = ?"
+    const valores = [id]
+    const [resultado] = await sql.query(comandosql, valores)
 
-module.exports = {aprovarForm, buscarPedido, buscarEmail, buscarUser, deletarForm}
+    return resultado
+
+}
+
+
+
+module.exports = {aprovarForm, buscarPedido, buscarEmail, buscarUser, deletarForm, buscarID}

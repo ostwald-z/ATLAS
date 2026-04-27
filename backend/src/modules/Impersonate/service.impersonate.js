@@ -6,6 +6,10 @@ const jwt = require("jsonwebtoken")
 
 const logImpersonate = require("./impersonateLOGGER")
 
+
+const {notifyAdmin} = require("../../utils/telegram_notify")
+
+
 async function impersonate(id, chave, httpInfo) {
  
     const idLimpo = Number(id)
@@ -34,6 +38,27 @@ async function impersonate(id, chave, httpInfo) {
         }, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES})
         
         logImpersonate.impersonateLogger("sucesso", "Tudo foi colocado certo, token normal sistema criado", httpInfo, id)
+
+
+        // NOTIFICA VIA TELEGRAM.
+        notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Impersonate</b>
+    --------------------------
+    <b>SISTEMA:</b> Atlas System
+    <b>AÇÃO:</b> Impersonate
+    <b>USUÁRIO:</b> ${idLimpo} -- ${usuarioID.user}
+    <b>STATUS:</b> Sucesso
+
+
+    <b>Origem da ação:</b>
+    IP: ${httpInfo?.ip}
+    Localização: ${httpInfo?.location}
+
+    <pre> userAgent: ${httpInfo?.userAgent} </pre>
+    --------------------------
+    
+    <i> 📅 *Enviado em: ${new Date().toLocaleString('pt-BR')} </i>
+
+    `)
 
         return token;
     }

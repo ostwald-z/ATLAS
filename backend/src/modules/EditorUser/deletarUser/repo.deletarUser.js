@@ -9,6 +9,15 @@ async function deletarUser(id) {
     return resultado;
 }
 
+async function buscarUser(id) {
+    const comandosql = "SELECT * FROM usuarios WHERE id = ?"
+    const valores = [id]
+    const [resultado] = await sql.query(comandosql, valores)
+
+    return resultado
+
+}
 
 
-module.exports = {deletarUser}
+
+module.exports = {deletarUser, buscarUser}
