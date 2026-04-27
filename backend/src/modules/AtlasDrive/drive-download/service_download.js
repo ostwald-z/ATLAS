@@ -12,6 +12,7 @@ async function download_arquivo_service(caminho_do_arquivo, id_de_quem_chama) {
     // OU o ID_owner do arquivo que de fato foi puxado NÃO CORRESPONDER ao ID de quem solicitou a requisição
     // por segurança, erro: Arquivo não encontrado (ou o ID do dono do arquivo não era o mesmo de quem pediu)
     if (!arquivo_buscar) {
+        console.log(caminho_do_arquivo)
         throw new AppError('Arquivo não encontrado', 404)
     }
 
