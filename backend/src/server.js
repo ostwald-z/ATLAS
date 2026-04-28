@@ -57,7 +57,7 @@ server.use(erroMiddle)
 
 
 // Deixe sem o IP, assim ele aceita localhost e conexões da rede interna
-server.listen(process.env.PORT, () => {
+server.listen(process.env.PORT, "127.0.0.1",() => {
     console.log(`Server: ON na porta ${process.env.PORT}`);
 });
 
