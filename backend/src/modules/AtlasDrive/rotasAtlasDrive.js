@@ -5,9 +5,6 @@ const rotaDrive = express.Router()
 //chama middleware do multter pra processar arquivo recebido
 const upload_middle = require('../../middlewares/multter_arquivo')
 
-//middleware de autenticação (joga token e dados pro req.user)
-const {authMiddle_bearer} = require("../../middlewares/authMiddleBEARER")
-
 
 //middleware de autenticação COOKIE
 const {authMiddle} = require("../../middlewares/authMiddleware")
