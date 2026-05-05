@@ -10,7 +10,7 @@ const jwt = require("jsonwebtoken")
 
 function authMiddle_login_init(req,res,next){
         try{
-            const token = req.cookies.token; 
+            const token = req.cookies.init_login_token; 
   
             
             if(!token){
