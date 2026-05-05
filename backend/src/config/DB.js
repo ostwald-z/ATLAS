@@ -17,7 +17,7 @@ async function tentarConexao(){
         conectar.release();
 
     }catch(erro){
-        console.log("ERRO: banco de dados falhou na conexão");
+        console.log("ERRO: banco de dados falhou na conexão", erro);
         process.exit(1)
     }
 }

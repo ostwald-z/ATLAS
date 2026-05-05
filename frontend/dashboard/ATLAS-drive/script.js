@@ -1251,48 +1251,47 @@ function criarSegmentoPath(nome, caminho, isLast) {
 
 
 
-
-
+// DOWNLOAD DE ARQUIVOS
 
 function downloadFile(caminho_relativo, nomeOriginal) {
   const id = criarTransferencia(nomeOriginal || caminho_relativo, 'download');
 
-  const xhr = new XMLHttpRequest();
-  if (transferencias[id]) transferencias[id].xhr = xhr;
-  
-  if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
-  xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, true);
-  xhr.responseType = 'blob';
-  xhr.withCredentials = true;
-  xhr.setRequestHeader('Content-Type', 'application/json');
+  // monta URL com query (evita POST + blob)
+  const url = new URL(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`);
+  url.searchParams.append("caminho_arquivo", caminho_relativo);
 
-  xhr.onprogress = (e) => {
-    if (e.lengthComputable) {
-      atualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
-    }
-  };
+  // cria link invisível
+  const a = document.createElement('a');
+  a.href = url.toString();
+  a.download = nomeOriginal || caminho_relativo;
 
-  xhr.onload = () => {
-    if (xhr.status === 200) {
-      finalizarTransferencia(id, true);
+  // necessário pra cookies (auth)
+  a.rel = "noopener";
 
-      const a = document.createElement('a');
-      const url = window.URL.createObjectURL(xhr.response);
-      a.href = url;
-      a.download = nomeOriginal || caminho_relativo;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } else {
-      finalizarTransferencia(id, false);
-    }
-  };
+  document.body.appendChild(a);
 
-  xhr.onerror = () => finalizarTransferencia(id, false);
+  // inicia download nativo
+  a.click();
 
-  xhr.send(JSON.stringify({ caminho_arquivo: caminho_relativo }));
+  a.remove();
+
+  /**
+   * ⚠️ IMPORTANTE:
+   * aqui NÃO temos mais progresso real
+   * então você pode:
+   * - marcar como iniciado
+   * - e finalizar depois de um tempo fake (UX)
+   */
+
+  atualizarTransferencia(id, 5); // só pra dar feedback inicial
+
+  // simulação simples (opcional)
+  setTimeout(() => {
+    finalizarTransferencia(id, true);
+  }, 2000);
 }
+
+
 
 
 

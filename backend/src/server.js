@@ -43,11 +43,10 @@ async function encriptarAlog() {
     
     const bcrypt = require("bcrypt")
 
-    const algo = await bcrypt.hash("Uw!BV76aW", 10)
+    const algo = await bcrypt.hash("Uw!BV76aWOGWDamigodoben10", 10)
     console.log(algo)
 }
 encriptarAlog()
-
 */
 
 

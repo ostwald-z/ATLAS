@@ -6,52 +6,76 @@ const crypto = require("crypto");
 
 const repo_upload = require("./repo.upload");
 
+/**
+ * Upload de arquivo usando STREAM (via multer diskStorage)
+ *
+ * IMPORTANTE:
+ * - Aqui NÃO usamos arquivo.buffer
+ * - O multer já salvou o arquivo em disco (arquivo.path)
+ * - Nós apenas movemos o arquivo para o destino final
+ */
 async function upload_arquivo_service(arquivo, dono_id, caminho_escolhido = "") {
 
     if (!arquivo) {
         throw new AppError("Arquivo não enviado", 400);
     }
 
+    // 🔹 Caminho base do usuário
     const basePath = path.join(process.env.ATLAS_CLOUD_PATH, String(dono_id));
 
-    // normaliza o caminho (remove coisas perigosas)
+    // 🔹 Sanitização do caminho (proteção contra path traversal)
     const safeSubPath = path
-    .normalize(caminho_escolhido || "")
-    .replace(/^\/+/, "")   // remove barra do início
-    .replace(/\\/g, "/");  // garante padrão
+        .normalize(caminho_escolhido || "")
+        .replace(/^\/+/, "")   // remove barra inicial
+        .replace(/\\/g, "/");  // padroniza
 
-  
-  
-  const pastaUsuario = path.join(basePath, safeSubPath);
+    const pastaUsuario = path.join(basePath, safeSubPath);
 
-    // proteção contra sair da pasta do usuário
+    // 🔒 Proteção: impede sair da pasta do usuário
     if (!pastaUsuario.startsWith(basePath)) {
         throw new AppError("Caminho inválido", 403);
     }
 
-    // cria pasta se não existir
+    // 📁 Garante que a pasta existe
     await fs.mkdir(pastaUsuario, { recursive: true });
 
-    // gera nome único
+    // 🔹 Gera nome único
     const extension = path.extname(arquivo.originalname);
     const uniqueName = crypto.randomUUID() + extension;
 
     const caminhoCompleto = path.join(pastaUsuario, uniqueName);
 
-    // salva arquivo
-    await fs.writeFile(caminhoCompleto, arquivo.buffer);
+    /**
+     * ✅ AQUI ESTÁ A MUDANÇA PRINCIPAL
+     *
+     * Antes:
+     *   fs.writeFile(caminhoCompleto, arquivo.buffer)
+     *
+     * Agora:
+     *   movemos o arquivo já salvo pelo multer
+     *
+     * Isso evita:
+     * - carregar o arquivo na RAM
+     * - travar o servidor com arquivos grandes
+     */
+    await fs.rename(arquivo.path, caminhoCompleto);
 
-    // salva caminho RELATIVO (melhor)
-    const caminhoRelativo = path.posix.join(safeSubPath,uniqueName).replace(/^\/+/, ""); // GARANTIA FINAL
+    // 🔹 Caminho relativo (pra salvar no banco)
+    const caminhoRelativo = path
+        .posix
+        .join(safeSubPath, uniqueName)
+        .replace(/^\/+/, "");
+
     const metadata = {
         owner_id: dono_id,
         name: arquivo.originalname,
-        path: caminhoRelativo, // melhor
+        path: caminhoRelativo,
         type: arquivo.mimetype,
         size: arquivo.size,
         uuid: uniqueName
     };
 
+    // 💾 Salva metadata no banco
     const resultado = await repo_upload.upload_arquivo(metadata);
 
     return resultado;

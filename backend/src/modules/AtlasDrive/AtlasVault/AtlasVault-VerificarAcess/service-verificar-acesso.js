@@ -11,7 +11,6 @@ async function service_verificar_acesso_vault(role_user, codigo) {
     }
 
 
-
     // verifica o codigo se está correto
     const validarCodigoInicial = await bcrypt.compare(codigo, process.env.CODIGO_INICIAL_VAULT)
 

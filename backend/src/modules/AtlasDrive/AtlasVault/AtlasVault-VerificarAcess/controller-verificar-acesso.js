@@ -10,6 +10,9 @@ async function controller_verificar_acesso_inicial(req,res,next) {
         const {codigo} = req.body
 
 
+        // RETONAR UM BEARER TOKEN AQUI 
+        // para poder fazer requisição no painel de acesso ao vault secreto.
+
 
         await service.service_verificar_acesso_vault(role_user, codigo)
 

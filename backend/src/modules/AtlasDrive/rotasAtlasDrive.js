@@ -124,7 +124,7 @@ rotaDrive.post("/upload", authMiddle, middleRole(["user", "admin"]) ,upload_midd
 
 
 // Rota para Download - já usa token via cookie por segurança e padrão
-rotaDrive.post("/download",authMiddle, middleRole(["user", "admin"]), controller_download.controller_download_arq)
+rotaDrive.get("/download",authMiddle, middleRole(["user", "admin"]), controller_download.controller_download_arq)
 
 
 // Rota para deletar arquivos OU pastas

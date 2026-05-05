@@ -245,28 +245,26 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
                 const [usuario] = await repo.buscarPorId(idLimpo)
 
                 // NOTIFICA VIA TELEGRAM.
-                notifyAdmin(`🚀 **NOVO LOG DE SISTEMA: Editar Usuário**
+                notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Editar Usuário</b>
             --------------------------
-            **SISTEMA:** Atlas System
-            **AÇÃO**: Editar Usuário
-            **USUÁRIO:** ${idLimpo} -- ${usuario.user}
-            **STATUS:** Sucesso
-            **AUTOR:** ${idUser} -- ${autor.user}
+            <b>SISTEMA:</b> Atlas System
+            <b>AÇÃO:</b> Editar Usuário
+            <b>USUÁRIO:</b> ${idLimpo} -- ${usuario.user}
+            <b>STATUS:</b> Sucesso
+            <b>AUTOR:</b> ${idUser} -- ${autor.user}
             --------------------------
 
-            Mudanças:
+            OBS: O usuário foi editado promovendo (ou mantendo) ADMIN
 
-            ${changes}
-
-            --------------------------
-            OBS: O usuário foi editado normalmente
-
-
-            **Origem da ação:**
+            <b>Origem da ação:</b>
             IP: ${httpInfo?.ip}
             Localização: ${httpInfo?.location}
-            userAgent: ${httpInfo?.userAgent}
-            --------------------------`)
+
+            <pre>${httpInfo?.userAgent}</pre>
+            --------------------------
+
+            <i>📅 Enviado em: ${new Date().toLocaleString('pt-BR')}</i>
+            `);
 
 
 
