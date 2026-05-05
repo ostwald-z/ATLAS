@@ -59,13 +59,36 @@ async function loginUser(user,senha, httpInfo) {
     if(usuario.totp !== "1"){
         const totpStatus = "falsetotp"
 
+        // REFRESH TOKEN !!!
         const token = jwt.sign(
+            {id:usuario.id},
+            process.env.JWT_REFRESH_SECRET,
+            {expiresIn: process.env.JWT_REFRESH_EXPIRES})
+
+        // access TOKEN !!!!
+        const acess_Token = jwt.sign(
             {id:usuario.id, role:usuario.role},
             process.env.JWT_SECRET,
             {expiresIn: process.env.JWT_EXPIRES})
 
 
-        return {token, totpStatus}
+
+        const refreshHash = await bcrypt.hash(token, 10)
+        const acessHash = await bcrypt.hash(acess_Token, 10)
+
+        // verifica se EXISTE sessão no banco
+        const [user_sessao] = repo.buscar_sessao(usuario.id)
+
+        if(!user_sessao){
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            repo.criar_sessao_user(usuario.id, expiresRefresh, refreshHash, acessHash)
+        }else{
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            repo.atualizar_sessao(refreshHash, acessHash, usuario.id, expiresRefresh)
+        }
+
+
+        return {token, totpStatus, acess_Token}
 
     }
 
@@ -78,8 +101,7 @@ async function loginUser(user,senha, httpInfo) {
         process.env.JWT_SECRET_LOGIN_INIT,
         {expiresIn: process.env.JWT_SECRET_LOGIN_INIT_EXPIRES})
 
-
-    return {token, totpStatus}
+    return {token, totpStatus, acess_Token}
 
 
 }

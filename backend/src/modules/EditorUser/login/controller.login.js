@@ -15,25 +15,51 @@ async function loginUser(req,res,next) {
 
         const httpInfo = req.httpInfo
 
-        const {token, totpStatus} = await service.loginUser(user, senha, httpInfo)
+        const {token, totpStatus, AcessToken} = await service.loginUser(user, senha, httpInfo)
 
-        
         const [usuario] = await repo.buscarUser(user)
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            // Fica true apenas em produção (HTTPS)
-            secure: isProd, 
-            // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
-            sameSite: 'lax', 
-            maxAge: 3600000 // 1 hora
-        })
 
-        res.status(200).json({
-            message: "Credenciais corretas.",
-            totpStatus: totpStatus,
-            role: usuario.role
-        })
+        // se tiver 2FA = Só envia um token válido para tentar código 2FA
+        // se não tiver = envia o Acess e o Refresh , login aceito
+
+        if(totpStatus === "falsetotp"){
+            
+            res.cookie("RefreshToken", token, {
+                httpOnly: true,
+                // Fica true apenas em produção (HTTPS)
+                secure: isProd, 
+                // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+                sameSite: 'lax', 
+                maxAge: 3600000 // 1 hora
+            })
+
+            res.status(200).json({
+                message: "Credenciais corretas.",
+                totpStatus: totpStatus,
+                role: usuario.role,
+                AcessToken: AcessToken
+            })
+
+        }else{
+
+            res.cookie("init_login_token", token, {
+                httpOnly: true,
+                // Fica true apenas em produção (HTTPS)
+                secure: isProd, 
+                // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+                sameSite: 'lax', 
+                maxAge: 600000 // 10 minutos
+            })
+
+            res.status(200).json({
+                message: "Credenciais corretas.",
+                totpStatus: totpStatus,
+                role: usuario.role
+            })
+
+        }
+
 
 
     }catch(erro){

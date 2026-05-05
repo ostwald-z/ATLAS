@@ -3,6 +3,8 @@ const AppError = require("../../../error/AppError")
 const repo2fa = require("./repo-2fa-verify")
 const totp2fa = require("./2falogica")
 
+const bcrypt = require("bcrypt")
+
 const jwt = require("jsonwebtoken")
 
 
@@ -36,16 +38,40 @@ async function service2fa_verify(totpcode, id_user) {
     }
 
 
-    // gera token definitivo para usar no sistema
-    const token = jwt.sign(
+    // gera token definitivo para usar no sistema (acess)
+    const AcessToken = jwt.sign(
         {id:usuario.id, role:usuario.role},
         process.env.JWT_SECRET,
         {expiresIn: process.env.JWT_EXPIRES})
 
+    
+    // gera refreshToken, necessário para pegar outro acessToken.
+    const RefreshToken = jwt.sign(
+        {id:usuario.id},
+        process.env.JWT_REFRESH_SECRET,
+        {expiresIn: process.env.JWT_REFRESH_EXPIRES}
+    )
 
-    return token
+    // transforma em HASH as variaveis
+    const refreshHash = await bcrypt.hash(RefreshToken, 10)
+    const acessHash = await bcrypt.hash(AcessToken, 10)
 
 
+    
+
+    // VERIFICA SE A SESSÃO JÁ EXISTE, OU NÃO a sessão, criando ou atualizando.
+    const [user_session] = await repo2fa.buscar_sessao(usuario.id)
+
+    if(!user_session){
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        repo2fa.criar_sessao_user(usuario.id, expiresAt, refreshHash, acessHash)
+    }else{
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        repo2fa.atualizar_sessao(refreshHash, acessHash, usuario.id, expiresAt)
+    }
+
+    
+    return {RefreshToken, AcessToken}
 
 }
 

@@ -46,8 +46,17 @@ const {httpInfoMiddleware} = require("../../middlewares/httpInfoGet/httpInfo")
 // importa controller de logout > expira cookie
 const logout_controller_user = require("./logout-user/controller.logout")
 
+// importa middleware de refreshToken para refresh
+const {authMiddle_Refresh_TOKEN} = require("../../middlewares/authMiddle_Refresh_TOKEN")
+
 
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
+
+
+
+//rota REFRESH > pedir novo ACESS TOKEN (!!)
+userRota.post("/refresh", authMiddle_Refresh_TOKEN, )
+
 
 
 //rota LOGOUT do usuário
