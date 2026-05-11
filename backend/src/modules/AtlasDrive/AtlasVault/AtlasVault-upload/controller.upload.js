@@ -5,14 +5,14 @@ const service = require("./service.upload")
 async function drive_upload_vault(req, res , next) {
     try{    
 
-        const arquivos = req.files
+        const arquivo = req.files && req.files.length > 0 ? req.files[0] : null;
 
-        const {caminho_escolhido} = req.body
+        //const {caminho_escolhido} = req.body
 
-
-        for (const arquivo of arquivos) {
-            await service.upload_arquivo_service_vault(arquivo, caminho_escolhido);
-        }
+        const resultado = await service.upload_arquivo_service_vault(
+            arquivo, 
+            req.body.caminho_escolhido
+        );
 
 
         res.status(200).json({

@@ -7,68 +7,62 @@ const path = require("path");
  * Root: ATLAS_CLOUD_PATH/_vault020/
  */
 async function upload_arquivo_service_vault(arquivo, caminho_escolhido = "") {
+    // 1. Validação robusta antes de qualquer ação no disco
+    if (!arquivo) throw new AppError("Nenhum arquivo recebido.", 400);
 
-    if (!arquivo) {
-        throw new AppError("Nenhum arquivo recebido.", 400);
+    // Se o multer mandar req.files (array), pegamos o primeiro
+    const fileData = Array.isArray(arquivo) ? arquivo[0] : arquivo;
+
+    // Pega o conteúdo (pode vir de .buffer ou de um arquivo temporário no disco)
+    let conteudo;
+    if (fileData.buffer) {
+        conteudo = fileData.buffer;
+    } else if (fileData.path) {
+        conteudo = await fs.readFile(fileData.path); // lê do temp se não estiver na RAM
     }
 
-    // 1. Definição da Raiz (Vault)
+    if (!conteudo) {
+        throw new AppError("O conteúdo do arquivo está vazio ou inválido.", 400);
+    }
+
     const base_vault = path.resolve(process.env.ATLAS_CLOUD_PATH, "_vault020");
 
-    // 2. Sanitização do caminho de destino
-    // Remove barras do início/fim e normaliza
     const safeSubPath = caminho_escolhido
         .replace(/^[\\/]+|[\\/]+$/g, '')
         .replace(/\\/g, "/");
 
     const pastaDestinoAbsoluta = path.join(base_vault, safeSubPath);
 
-    // 3. Segurança Anti-Jailbreak
     if (!pastaDestinoAbsoluta.startsWith(base_vault)) {
-        throw new AppError("Tentativa de acesso não autorizado ao diretório.", 403);
+        throw new AppError("Tentativa de acesso não autorizado.", 403);
     }
 
+    // 2. Sanitização do nome
+    const nomeOriginal = fileData.originalname || "arquivo_sem_nome";
+    const nomeArquivoLimpo = nomeOriginal
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+        .replace(/[.\s]+$/g, '');
+
+    const caminhoArquivoCompleto = path.join(pastaDestinoAbsoluta, nomeArquivoLimpo);
+
     try {
-        // 4. Cria a estrutura de pastas se não existir
+        // 3. Só cria a pasta AGORA, logo antes de escrever
         await fs.mkdir(pastaDestinoAbsoluta, { recursive: true });
 
-        // 5. Sanitização do nome do arquivo original
-        // Evita caracteres que quebram o Windows/Linux
-        const nomeArquivoLimpo = arquivo.originalname
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
-            .replace(/[.\s]+$/g, '');
+        // 4. Escrita (usando a variável 'conteudo' que validamos lá em cima)
+        await fs.writeFile(caminhoArquivoCompleto, conteudo);
 
-        const caminhoArquivoCompleto = path.join(pastaDestinoAbsoluta, nomeArquivoLimpo);
-
-        // 6. Verificação de Duplicidade (Opcional)
-        // Se quiser sobrescrever, remova este bloco.
-        try {
-            await fs.access(caminhoArquivoCompleto);
-            throw new AppError("Já existe um arquivo com este nome nesta pasta.", 400);
-        } catch (err) {
-            if (err.statusCode === 400) throw err;
-            // Se cair no erro de 'não encontrado', segue o baile para o upload
-        }
-
-        // 7. Escrita do arquivo no disco
-        await fs.writeFile(caminhoArquivoCompleto, arquivo.buffer);
-
-        // 8. Retorno dos metadados físicos
         return {
             status: "sucesso",
-            mensagem: "Arquivo salvo no vault",
             detalhes: {
                 nome: nomeArquivoLimpo,
                 caminho_relativo: path.posix.join(safeSubPath, nomeArquivoLimpo),
-                tamanho: arquivo.size,
-                mimetype: arquivo.mimetype
+                tamanho: fileData.size
             }
         };
-
     } catch (err) {
-        if (err instanceof AppError) throw err;
-        console.error("Erro no upload FS:", err);
-        throw new AppError("Erro técnico ao salvar o arquivo no disco.");
+        console.error("Erro no FS:", err);
+        throw new AppError("Erro técnico ao salvar no disco.");
     }
 }
 
