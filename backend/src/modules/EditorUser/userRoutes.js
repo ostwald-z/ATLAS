@@ -50,17 +50,19 @@ const logout_controller_user = require("./logout-user/controller.logout")
 const {authMiddle_Refresh_TOKEN} = require("../../middlewares/authMiddle_Refresh_TOKEN")
 
 
+//importa controller do refresh
+const controller_refresh = require("../refresh-token/controller.refresh")
+
+
 //ROTA ATUAL ATÉ AQUI ----- /api/user/
 
 
 
 //rota REFRESH > pedir novo ACESS TOKEN (!!)
-userRota.post("/refresh", authMiddle_Refresh_TOKEN, )
-
-
+userRota.post("/refresh", authMiddle_Refresh_TOKEN, controller_refresh.controller_refresh)
 
 //rota LOGOUT do usuário
-userRota.post("/logout", authMiddle, roleMiddle(["user", "admin"]), logout_controller_user.logout_controller_user)
+userRota.post("/logout", logout_controller_user.logout_controller_user)
 
 
 // GERA PRIMEIRO CÓDIGO DO USUARIO na vida
@@ -89,8 +91,6 @@ userRota.get("/", authMiddle, roleMiddle("admin") ,controllerListarTodos.listarT
 
 //listar usuario especifico
 userRota.get("/:id", authMiddle, roleMiddle("admin"),controllerListarUser.listarUser)
-
-
 
 //atualizar usuario
 userRota.patch("/:id", httpInfoMiddleware, authMiddle, roleMiddle(["admin", "user"]),validarBody(schemaUpdateUser),controllerUpdateUser.updateUser)
