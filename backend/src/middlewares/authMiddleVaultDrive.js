@@ -1,19 +1,16 @@
-//só  verifica o token, pego poor cookies
+//só  verifica o vaultToken entregue por JSON com header personalizado para vault.
 const AppError = require("../error/AppError")
 const jwt = require("jsonwebtoken")
 
-function authMiddle_bearer_vault(req,res,next){
+function authMiddle_vault(req,res,next){
         try{
-            const token = req.headers.authorization?.split(" ")[1]
+            const vaultToken = req.cookies.VaultCookie
 
-            
-            if(!token){
+            if(!vaultToken){
                 throw new AppError("Não Autenticado", 401)
             }
 
-            
-
-            const payload = jwt.verify(token, process.env.JWT_SECRET_VAULT_DRIVE);
+            const payload = jwt.verify(vaultToken, process.env.JWT_SECRET_VAULT_DRIVE);
             req.VaultAcessToken = payload;
 
             next();
@@ -30,4 +27,4 @@ function authMiddle_bearer_vault(req,res,next){
 
 
 
-module.exports = {authMiddle_bearer_vault}
+module.exports = {authMiddle_vault}
