@@ -9,7 +9,11 @@ const totp2fa = require("../2FA-logica/2falogica")
 // pega o necessário para LOGS
 const logLoginAttempt = require("./authLOGGER")
 
+
+// colocar  depois a cada login, especificando usuário.
 const {notifyAdmin} = require("../../../utils/telegram_notify")
+
+
 
 
 const sendLoginAlertEmail = require("../email-LOGICA/emailService")
@@ -72,23 +76,70 @@ async function loginUser(user,senha, httpInfo) {
             {expiresIn: process.env.JWT_EXPIRES})
 
 
-
         const refreshHash = await bcrypt.hash(token, 10)
-        const acessHash = await bcrypt.hash(acess_Token, 10)
 
         // verifica se EXISTE sessão no banco
-        const [user_sessao] = repo.buscar_sessao(usuario.id)
+        const [user_sessao] = await repo.buscar_sessao(usuario.id)
+
+
+        // verifica todas as possibilidades
+        // RTF_1 vazio, ou RTF_2 vazio, ou ambos vazios, ou ambos Preenchidos, ou não existe a sessão.
 
         if(!user_sessao){
+            // se não tem sessão existente, cria RTF e coloca no RTF_1, deixando o 2 vazio.
             const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-            repo.criar_sessao_user(usuario.id, expiresRefresh, refreshHash, acessHash)
-        }else{
-            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-            repo.atualizar_sessao(refreshHash, acessHash, usuario.id, expiresRefresh)
+            await repo.criar_sessao_user(usuario.id, expiresRefresh, refreshHash)
+
+            return {token, totpStatus, acess_Token}
         }
 
 
-        return {token, totpStatus, acess_Token}
+        // se não tiver RTF_1, e TIVER RTF_2 - coloca no vazio, sempre.
+        if(!user_sessao.RTF_1 && user_sessao.RTF_2){
+            // cria nova data de expiração 15 dias.
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            await repo.atualizar_RTF_1(usuario.id, refreshHash, expiresRefresh)
+
+            return {token, totpStatus, acess_Token}
+
+        }
+
+
+        if(user_sessao.RTF_1 && !user_sessao.RTF_2){
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            await repo.atualizar_RTF_2(usuario.id, refreshHash, expiresRefresh)
+
+            return {token, totpStatus, acess_Token}
+
+        }
+
+        if(!user_sessao.RTF_1 && !user_sessao.RTF_2){
+            // se não tem sessão existente, cria RTF e coloca no RTF_1, deixando o 2 vazio.
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            await repo.atualizar_RTF_1(usuario.id, refreshHash, expiresRefresh)
+
+            return {token, totpStatus, acess_Token}
+        }
+
+
+        if(user_sessao.RTF_1 && user_sessao.RTF_2){
+            // faz lógica de quem é mais antigo , para substituir por esse novo refresh.
+            const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+
+            const maisAntigo = user_sessao.RTF_1_createdAt < user_sessao.RTF_2_createdAt
+                    ? "RTF_1"
+                    : "RTF_2";
+
+    
+            const nomeFuncao = `atualizar_${maisAntigo}`;
+
+            await repo[nomeFuncao](usuario.id, refreshHash, expiresRefresh);
+        
+            return {token, totpStatus, acess_Token}
+
+        }
+
+        throw new AppError("Erro inesperado ao logar, tente novamente mais tarde.")
 
     }
 

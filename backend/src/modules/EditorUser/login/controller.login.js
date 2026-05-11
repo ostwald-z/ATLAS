@@ -19,7 +19,6 @@ async function loginUser(req,res,next) {
 
         const [usuario] = await repo.buscarUser(user)
 
-
         // se tiver 2FA = Só envia um token válido para tentar código 2FA
         // se não tiver = envia o Acess e o Refresh , login aceito
 
@@ -34,11 +33,19 @@ async function loginUser(req,res,next) {
                 maxAge: 3600000 // 1 hora
             })
 
+            res.cookie("AcessToken", AcessToken, {
+                httpOnly: true,
+                // Fica true apenas em produção (HTTPS)
+                secure: isProd,
+                // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+                sameSite: 'lax', 
+                maxAge: 900000  // 15 minutos
+            })
+
             res.status(200).json({
                 message: "Credenciais corretas.",
                 totpStatus: totpStatus,
-                role: usuario.role,
-                AcessToken: AcessToken
+                role: usuario.role
             })
 
         }else{

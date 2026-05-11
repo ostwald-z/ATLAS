@@ -38,40 +38,82 @@ async function service2fa_verify(totpcode, id_user) {
     }
 
 
-    // gera token definitivo para usar no sistema (acess)
+    // REFRESH TOKEN !!!
+    const RefreshToken = jwt.sign(
+        {id:usuario.id},
+        process.env.JWT_REFRESH_SECRET,
+        {expiresIn: process.env.JWT_REFRESH_EXPIRES})
+    
+    // access Token !!!!
     const AcessToken = jwt.sign(
         {id:usuario.id, role:usuario.role},
         process.env.JWT_SECRET,
         {expiresIn: process.env.JWT_EXPIRES})
-
     
-    // gera refreshToken, necessário para pegar outro acessToken.
-    const RefreshToken = jwt.sign(
-        {id:usuario.id},
-        process.env.JWT_REFRESH_SECRET,
-        {expiresIn: process.env.JWT_REFRESH_EXPIRES}
-    )
-
-    // transforma em HASH as variaveis
+    
     const refreshHash = await bcrypt.hash(RefreshToken, 10)
-    const acessHash = await bcrypt.hash(AcessToken, 10)
-
-
     
-
-    // VERIFICA SE A SESSÃO JÁ EXISTE, OU NÃO a sessão, criando ou atualizando.
-    const [user_session] = await repo2fa.buscar_sessao(usuario.id)
-
-    if(!user_session){
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        repo2fa.criar_sessao_user(usuario.id, expiresAt, refreshHash, acessHash)
-    }else{
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        repo2fa.atualizar_sessao(refreshHash, acessHash, usuario.id, expiresAt)
+    // verifica se EXISTE sessão no banco
+    const [user_sessao] = repo.buscar_sessao(usuario.id)
+    
+    // verifica todas as possibilidades
+    // RTF_1 vazio, ou RTF_2 vazio, ou ambos vazios, ou ambos Preenchidos, ou não existe a sessão.
+    
+    if(!user_sessao){
+        // se não tem sessão existente, cria RTF e coloca no RTF_1, deixando o 2 vazio.
+        const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+        repo.criar_sessao_user(usuario.id, expiresRefresh, refreshHash)
+    
+        return {RefreshToken, AcessToken}
+    }
+    
+    
+    // se não tiver RTF_1, e TIVER RTF_2 - coloca no vazio, sempre.
+    if(!user_sessao.RTF_1 && user_sessao.RTF_2){
+        // cria nova data de expiração 15 dias.
+        const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+        await repo.atualizar_RTF_1(usuario.id, refreshHash, expiresRefresh)
+    
+        return {RefreshToken, AcessToken}
+    
+    }
+    
+    
+    if(user_sessao.RTF_1 && !user_sessao.RTF_2){
+        const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+        await repo.atualizar_RTF_2(usuario.id, refreshHash, expiresRefresh)
+    
+        return {RefreshToken, AcessToken}
+    
+    }
+    
+    if(!user_sessao.RTF_1 && !user_sessao.RTF_2){
+        // se não tem sessão existente, cria RTF e coloca no RTF_1, deixando o 2 vazio.
+        const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+        repo.atualizar_RTF_1(usuario.id, refreshHash, expiresRefresh)
+    
+        return {RefreshToken, AcessToken}
+    }
+    
+    
+    if(user_sessao.RTF_1 && user_sessao.RTF_2){
+        // faz lógica de quem é mais antigo , para substituir por esse novo refresh.
+        const expiresRefresh = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+    
+        const maisAntigo = user_sessao.RTF_1_createdAt < user_sessao.RTF_2_createdAt
+                ? "RTF_1"
+                : "RTF_2";
+    
+        
+        const nomeFuncao = `atualizar_${maisAntigo}`;
+    
+        await repo[nomeFuncao](usuario.id, refreshHash, expiresRefresh);
+            
+        return {RefreshToken, AcessToken}
+    
     }
 
-    
-    return {RefreshToken, AcessToken}
+    throw new AppError("Erro interno inesperado ao logar, tente novamente mais tarde")
 
 }
 

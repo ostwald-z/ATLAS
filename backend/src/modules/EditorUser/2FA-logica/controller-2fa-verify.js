@@ -26,10 +26,19 @@ async function controller_2fa_verify(req, res,  next) {
             maxAge: 3600000 // 1 hora
         })
 
+        res.cookie("AcessToken", AcessToken, {
+            httpOnly: true,
+            // Fica true apenas em produção (HTTPS)
+            secure: isProd,
+            // 'lax' para o mesmo domínio, ou 'none' se precisar de cross-site no futuro
+            sameSite: 'lax', 
+            maxAge: 900000  // 15 minutos
+        })
+
+
         res.status(200).json({
             message: "Login realizado com sucesso!",
             role: usuario.role,
-            AcessToken: AcessToken
         })
 
 
