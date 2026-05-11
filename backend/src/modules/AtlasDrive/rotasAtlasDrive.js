@@ -12,7 +12,7 @@ const {authMiddle} = require("../../middlewares/authMiddleware")
 
 
 //MIDDLEWARE DE VALIDAÇÃO DE TOKEN VAULT ATLAS DRIVE
-const {authMiddle_bearer_vault} = require("../../middlewares/authMiddleVaultDrive")
+const {authMiddle_vault} = require("../../middlewares/authMiddleVaultDrive")
 
 
 // middleware de rate limit 
@@ -89,24 +89,33 @@ rotaDrive.post("/vault/autenticar", middlewareRate, authMiddle, middleRole("admi
 
 
 // ROTA QUE LISTA A PORRA DO ATLAS VAULT  (MIDDLEWARE PERSONALIZADO para ler TOKEN DADO PARA ALTERAÇÕES E LEITURA DO VAULT)
-rotaDrive.get("/vault/listar", authMiddle_bearer_vault, controller_lista_vault.listar_pastas_vault)
+rotaDrive.get("/vault/listar", authMiddle_vault, controller_lista_vault.listar_pastas_vault)
 
 
 // ROTA QUE RENOMEIA/MOVE PASTAS E ARQUIVOS DENTRO DO VAULT
-rotaDrive.patch("/vault/renomear", authMiddle_bearer_vault, controller_renomear_vault.renomear_arquivo_controller_vault)
+rotaDrive.patch("/vault/renomear", authMiddle_vault, controller_renomear_vault.renomear_arquivo_controller_vault)
 
+// importa middleware especifico pra download no vault, porque nao conseguimos enviar header
+// personlizado pra vault token e manter download nativo do browser.
+
+//ATUALIZAÇÃO, NAO USAMOS MAIS ESSE MIDDLEWARE, AGORA usamos o token do vault por COOKIE tambem
+const {authMiddle_bearer_vaultDownload} = require("../../middlewares/authMiddleVaultDownload")
 
 // ROTA DE DOWNLOAD DE ARQUIVOS para o VAULT DRIVE
-rotaDrive.post("/vault/download", authMiddle_bearer_vault, controller_download_vault.controller_download_vault)
+rotaDrive.post("/vault/download", authMiddle_vault, controller_download_vault.controller_download_vault)
 
 
 // ROTA DE UPLOAD DE ARQUIVOS PARA VAULT DRIVE
-rotaDrive.post("/vault/upload", authMiddle_bearer_vault, upload_middle.array("files"), controller_upload_vault.drive_upload_vault)
+rotaDrive.post("/vault/upload", authMiddle_vault, upload_middle.array("files"), controller_upload_vault.drive_upload_vault)
 
 
 //ROTA DE DELETE PARA ARQUIVOS E PASTAS VAULT
-rotaDrive.delete("/vault/deletar", authMiddle_bearer_vault, controller_delete_vault.controller_deletar_arquivo_vault)
+rotaDrive.delete("/vault/deletar", authMiddle_vault, controller_delete_vault.controller_deletar_arquivo_vault)
 
+//importa controlller de logout pro vault
+const controller_logout_vault = require("./AtlasVault/controller_logout_vault")
+
+rotaDrive.post("/vault/logout-vault", controller_logout_vault.controller_logout_vault)
 
 
 
@@ -120,8 +129,8 @@ rotaDrive.delete("/vault/deletar", authMiddle_bearer_vault, controller_delete_va
 rotaDrive.post("/upload", authMiddle, middleRole(["user", "admin"]) ,upload_middle.array("files"), controller_upload.drive_upload)
 
 
-// Rota para Download - já usa token via cookie por segurança e padrão
-rotaDrive.get("/download",authMiddle, middleRole(["user", "admin"]), controller_download.controller_download_arq)
+// Rota para Download - já usa token por segurança e padrão
+rotaDrive.post("/download",authMiddle, middleRole(["user", "admin"]), controller_download.controller_download_arq)
 
 
 // Rota para deletar arquivos OU pastas
