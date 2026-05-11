@@ -2603,6 +2603,7 @@ body.vault-mode .file-ext-badge {
    DARK MODE — via [data-theme="dark"] no <html>
 ══════════════════════════════════════════════ */
 
+[data-theme="dark"] :root,
 [data-theme="dark"] body {
   --bg:             #0f0f0e;
   --surface:        #1a1917;

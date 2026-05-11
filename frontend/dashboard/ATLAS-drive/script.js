@@ -1,9 +1,147 @@
+// ════════════════════════════════════════════════════════
+// AUTH GLOBAL WRAPPER (COOKIE-BASED)
+// ════════════════════════════════════════════════════════
+
+window.AUTH = {
+  refreshPromise: null
+};
+
+// =======================================================
+// AUTH CONTROL
+// =======================================================
+
+async function clearVaultToken(){
+  fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/logout-vault`,{
+    method: "POST",
+  })
+}
+
+
+function redirectToLogin() {
+  if (window.location.pathname.includes('/login/')) return;
+  window.location.href = '../../index.html';
+}
+
+async function forceLogout() {
+  try {
+    await fetch(`${window.CONFIG.API_BASE_URL}api/user/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch (_) {}
+
+  redirectToLogin();
+}
+
+
+// =======================================================
+// REFRESH TOKEN (COOKIE-BASED)
+// =======================================================
+
+async function refreshAccessToken() {
+  if (window.AUTH.refreshPromise) {
+    return window.AUTH.refreshPromise;
+  }
+
+  window.AUTH.refreshPromise = (async () => {
+    try {
+      const res = await fetch(
+        `${window.CONFIG.API_BASE_URL}api/user/refresh`,
+        {
+          method: 'POST',
+          credentials: 'include'
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error('refresh_failed');
+      }
+
+      // access token volta automaticamente via cookie
+      return true;
+
+    } catch (err) {
+      await forceLogout();
+      throw err;
+
+    } finally {
+      window.AUTH.refreshPromise = null;
+    }
+  })();
+
+  return window.AUTH.refreshPromise;
+}
+
+// =======================================================
+// API FETCH
+// =======================================================
+
+async function apiFetch(url, options = {}, retry = true) {
+
+  const headers = new Headers(options.headers || {});
+
+  // =====================================================
+  // CONFIG FINAL
+  // credentials include = cookies automáticos
+  // =====================================================
+
+  const config = {
+    ...options,
+    headers,
+    credentials: 'include'
+  };
+
+  let response = await fetch(url, config);
+
+  // =====================================================
+  // VAULT TOKEN EXPIRADO
+  // não tenta refresh do auth principal
+  // =====================================================
+
+  if (response.status === 401 && options.useVault) {
+    await clearVaultToken();
+
+    if (typeof mostrarVaultExpirado === 'function') {
+      mostrarVaultExpirado();
+    }
+
+    return response;
+  }
+
+  // =====================================================
+  // ACCESS TOKEN EXPIRADO
+  // tenta refresh via cookie refresh token
+  // =====================================================
+
+  if (response.status === 401 && retry) {
+    try {
+
+      await refreshAccessToken();
+
+      // retry automático
+      response = await fetch(url, config);
+
+    } catch (_) {
+      return response;
+    }
+  }
+
+  return response;
+}
+
+// ════════════════════════════════════════════════════════
+// FIM
+// ════════════════════════════════════════════════════════
+
+
+
+
 // ==========================
 // VERIFICAÇÃO DE LOGIN
 // ==========================
 (async function checkAuth() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -392,7 +530,7 @@ fileContainer.ondrop = (e) => {
 // ==========================
 async function fetchFiles(path = '/') {
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/cloud?path=${encodeURIComponent(path)}`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/cloud?path=${encodeURIComponent(path)}`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -434,49 +572,48 @@ function openItem(nome, tipo) {
 // ==========================
 // UPLOAD DE ARQUIVOS
 // ==========================
-function uploadFile() {
+async function uploadFile() {
   const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
 
-  input.onchange = () => {
+  input.onchange = async () => {
     if (!input.files.length) return;
-
-    Array.from(input.files).forEach(file => {
+    
+    for (const file of Array.from(input.files)) {
       const formData = new FormData();
       formData.append('files', file);
       formData.append('caminho_escolhido', currentPath);
 
       const id = criarTransferencia(file.name, 'upload');
-      const xhr = new XMLHttpRequest();
-      if (transferencias[id]) transferencias[id].xhr = xhr;
+      atualizarTransferencia(id, 10, 0, file.size);
 
-      if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
+      try {
+        const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
+          method: 'POST',
+          body: formData,
+          // 2. Avisa ao apiFetch para usar lógica de Vault se necessário 
+        });
 
-      xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, true);
-      xhr.withCredentials = true;
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          atualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status === 200) {
+        if (res.ok) {
           finalizarTransferencia(id, true);
-          fetchFiles(currentPath);
+          
+          // 3. Recarrega a lista correta após o upload
+          if (vaultMode) {
+            fetchVaultFiles(currentPath);
+          } else {
+            fetchFiles(currentPath);
+          }
+          
         } else {
           finalizarTransferencia(id, false);
         }
-      };
-
-      xhr.onerror = () => finalizarTransferencia(id, false);
-
-      xhr.send(formData);
-    });
+      } catch (err) {
+        console.error(err);
+        finalizarTransferencia(id, false);
+      }
+    }
   };
-
   input.click();
 }
 
@@ -498,8 +635,8 @@ async function tentarPreviewIcone(file) {
     : currentPath + '/' + file.nome;
 
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
-      method: 'POST',
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
+      method: 'GET',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
@@ -886,16 +1023,16 @@ async function carregarPastasParaMover(path = '/') {
   try {
     let response;
     if (vaultMode) {
-      response = await fetch(
+      response = await apiFetch(
         `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/listar?path=${encodeURIComponent(alvo)}`,
         {
           method: 'GET',
           credentials: 'include',
-          headers: { 'Authorization': `Bearer ${vaultToken}` }
+          useVault: true
         }
       );
     } else {
-      response = await fetch(
+      response = await apiFetch(
         `${window.CONFIG.API_BASE_URL}api/atlas-drive/cloud?path=${encodeURIComponent(alvo)}`,
         {
           method: 'GET',
@@ -1253,27 +1390,23 @@ function criarSegmentoPath(nome, caminho, isLast) {
 
 // DOWNLOAD DE ARQUIVOS
 
+// DOWNLOAD DRIVE NORMAL
 function downloadFile(caminho_relativo, nomeOriginal) {
-  const id = criarTransferencia(nomeOriginal || caminho_relativo, 'download');
+  // Como o token está no COOKIE, o browser envia automático no formulário
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${window.CONFIG.API_BASE_URL}api/atlas-drive/download`;
+  form.style.display = 'none';
 
-  // monta URL com query (evita POST + blob)
-  const url = new URL(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`);
-  url.searchParams.append("caminho_arquivo", caminho_relativo);
+  const input = document.createElement('input');
+  input.name = 'caminho_arquivo';
+  input.value = caminho_relativo || nomeOriginal;
+  
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit(); // O browser vai abrir o gerenciador de download nativo
+  document.body.removeChild(form);
 
-  // cria link invisível
-  const a = document.createElement('a');
-  a.href = url.toString();
-  a.download = nomeOriginal || caminho_relativo;
-
-  // necessário pra cookies (auth)
-  a.rel = "noopener";
-
-  document.body.appendChild(a);
-
-  // inicia download nativo
-  a.click();
-
-  a.remove();
 
   /**
    * ⚠️ IMPORTANTE:
@@ -1318,7 +1451,7 @@ async function visualizarArquivo(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1347,7 +1480,7 @@ async function visualizarArquivo(caminho_relativo, nomeOriginal) {
 
 async function deleteFile(caminho_relativo, pasta_ou_arquivo) {
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -1415,7 +1548,7 @@ function fecharModalRenomear() {
 // RENOMEIA TANTO ARQUIVO QUANTO PASTA - DEPENDENDO DE COMO O CAMINHO DIRETORIO É ENVIADO
 async function renameFile(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/renomear`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/renomear`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -1595,9 +1728,6 @@ document.getElementById('previewModal').addEventListener('touchend', (e) => {
 let _previewTouchStart = 0;
 
 
-
-
-
 // CONTEXTO SOBRE ARQUIVOS
 function abrirMenuContexto(e, nome, nomeOriginal) {
   e.preventDefault();
@@ -1741,7 +1871,7 @@ function configurarAcoesCriacaoContexto() {
       return;
     }
 
-    fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/criar-nova-Pasta`, {
+    apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/criar-nova-Pasta`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2076,7 +2206,7 @@ async function verificarAcessoVault(codigo) {
   }
 
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/verificar-acesso`, {
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/verificar-acesso`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2155,7 +2285,7 @@ async function autenticarVault() {
     vaultAuthBtn.disabled = true;
     vaultAuthBtn.querySelector('span').textContent = 'ABRINDO VAULT...';
 
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/autenticar`, {
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/autenticar`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2210,9 +2340,17 @@ function entrarModoVault() {
   fetchVaultFiles('/');
 }
 
+
+async function logout_vault_botao_pos() {
+  const res = fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/logout-vault`, {
+    method: "POST"
+  })
+}
+
+
 // ── SAIR DO MODO VAULT ─────────────────────────
 function sairModoVault() {
-  vaultToken = null;
+
   vaultMode = false;
 
   document.body.classList.remove('vault-mode');
@@ -2224,20 +2362,18 @@ function sairModoVault() {
   fetchFiles('/');
 }
 
-vaultExitBtn.onclick = sairModoVault;
+vaultExitBtn.onclick = sairModoVault();
 
 
 // ── FETCH DO VAULT ─────────────────────────────
 async function fetchVaultFiles(path = '/') {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/listar?path=${encodeURIComponent(path)}`,
       {
         method: 'GET',
         credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${vaultToken}`
-        }
+        useVault: true
       }
     );
 
@@ -2345,7 +2481,6 @@ confirmRename.onclick = async () => {
 
     xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
     xhr.withCredentials = true;
-    xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
 
     xhr.onload = () => {
       if (xhr.status === 401 || xhr.status === 403) { vaultFinalizarTransferencia(id, false); sairModoVault(); return; }
@@ -2377,7 +2512,6 @@ confirmRename.onclick = async () => {
 
     xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
     xhr.withCredentials = true;
-    xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
 
     xhr.onload = () => {
       if (xhr.status === 401 || xhr.status === 403) { vaultFinalizarTransferencia(id, false); sairModoVault(); return; }
@@ -2434,13 +2568,11 @@ confirmRename.onclick = async () => {
 // ── RENAME/MOVER NO VAULT ──────────────────────
 async function renameFileVault(caminho_relativo, novo_nome, pasta_ou_arquivo, mover) {
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/renomear`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/renomear`, {
       method: 'PATCH',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${vaultToken}`
-      },
+      useVault: true,
+      headers: {"Content-Type": "application/json"},
 
       body: JSON.stringify({
         caminho_arquivo: caminho_relativo,
@@ -2653,48 +2785,26 @@ function cancelarVaultTransferencia(id) {
 
 
 // ── DOWNLOAD VAULT ─────────────────────────────
-function downloadFileVault(caminho_relativo, nomeOriginal) {
-  const id = vaultCriarTransferencia(nomeOriginal || caminho_relativo, 'download');
+function vaultDownloadFile(caminho_relativo, nomeOriginal) {
+  // Se o Vault também for Cookie, use a mesma lógica acima mudando a URL.
+  // Mas como você disse que TUDO é cookie, a lógica é a mesma:
+  
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`;
+  form.style.display = 'none';
 
-  const xhr = new XMLHttpRequest();
-  vaultTransferXHR[id] = xhr;
-  if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
-  xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, true);
-  xhr.responseType = 'blob';
-  xhr.withCredentials = true;
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
-
-  xhr.onprogress = (e) => {
-    if (e.lengthComputable) {
-      vaultAtualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
-    }
-  };
-
-  xhr.onload = () => {
-    if (xhr.status === 401 || xhr.status === 403) {
-      vaultFinalizarTransferencia(id, false);
-      sairModoVault();
-      return;
-    }
-    if (xhr.status === 200) {
-      vaultFinalizarTransferencia(id, true);
-      const a = document.createElement('a');
-      const url = window.URL.createObjectURL(xhr.response);
-      a.href = url;
-      a.download = nomeOriginal || caminho_relativo;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } else {
-      vaultFinalizarTransferencia(id, false);
-    }
-  };
-
-  xhr.onerror = () => vaultFinalizarTransferencia(id, false);
-  xhr.send(JSON.stringify({ caminho_arquivo: caminho_relativo }));
+  const input = document.createElement('input');
+  input.name = 'caminho_arquivo';
+  input.value = caminho_relativo || nomeOriginal;
+  
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 }
+
+
 
 
 // ── VISUALIZAR VAULT ───────────────────────────
@@ -2702,13 +2812,11 @@ async function visualizarArquivoVault(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${vaultToken}`
-      },
+      useVault: true,
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ caminho_arquivo: caminho_relativo })
     });
 
@@ -2749,54 +2857,42 @@ window.visualizarArquivo = function(caminho_relativo, nomeOriginal) {
 
 // ── UPLOAD VAULT ───────────────────────────────
 function uploadFileVault() {
-  const input = document.createElement('input');
+
+const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
 
-  input.onchange = () => {
+  input.onchange = async () => {
     if (!input.files.length) return;
 
-    Array.from(input.files).forEach(file => {
+    for (const file of Array.from(input.files)) {
       const formData = new FormData();
-      formData.append('files', file);           // mesmo padrão multer .array("files")
+      formData.append('files', file);
       formData.append('caminho_escolhido', currentPath);
 
-      const id = vaultCriarTransferencia(file.name, 'upload');
+      const id = criarTransferencia(file.name, 'upload');
+      atualizarTransferencia(id, 10, 0, file.size); // Começa um progresso visual
 
-      const xhr = new XMLHttpRequest();
-      vaultTransferXHR[id] = xhr;
-      if (_opAtivas[id]) _opAtivas[id].xhrRef = xhr;
-      xhr.open('POST', `${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, true);
-      xhr.withCredentials = true;
-      xhr.setRequestHeader('Authorization', `Bearer ${vaultToken}`);
-      // ⚠️ NÃO seta Content-Type — o browser seta automático com boundary pro multipart
+      try {
+        const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, {
+          method: 'POST',
+          useVault: true,
+          body: formData
+          // Note: Não definir Content-Type manual, o fetch faz isso pro FormData
+        });
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          vaultAtualizarTransferencia(id, (e.loaded / e.total) * 100, e.loaded, e.total);
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status === 401 || xhr.status === 403) {
-          vaultFinalizarTransferencia(id, false);
-          sairModoVault();
-          return;
-        }
-        if (xhr.status === 200) {
-          vaultFinalizarTransferencia(id, true);
-          fetchVaultFiles(currentPath);
+        if (res.ok) {
+          finalizarTransferencia(id, true);
+          fetchFiles(currentPath);
         } else {
-          vaultFinalizarTransferencia(id, false);
+          finalizarTransferencia(id, false);
         }
-      };
-
-      xhr.onerror = () => vaultFinalizarTransferencia(id, false);
-
-      xhr.send(formData);
-    });
+      } catch (err) {
+        console.error(err);
+        finalizarTransferencia(id, false);
+      }
+    }
   };
-
   input.click();
 }
 
@@ -2815,12 +2911,12 @@ window.uploadFile = function() {
 // ── DELETE VAULT ───────────────────────────────
 async function deleteFileVault(caminho_relativo, pasta_ou_arquivo) {
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
       method: 'DELETE',
       credentials: 'include',
+      useVault: true,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${vaultToken}`
       },
       body: JSON.stringify({
         caminho_arquivo: caminho_relativo,
@@ -2876,7 +2972,7 @@ async function abrirEditorTxt(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/download`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2953,7 +3049,7 @@ txtEditorSaveBtn.addEventListener('click', async () => {
 
   try {
     // 1. Deleta o arquivo original
-    const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
+    const deleteRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2978,7 +3074,7 @@ txtEditorSaveBtn.addEventListener('click', async () => {
     formData.append('files', file);
     formData.append('caminho_escolhido', pastaDestino);
 
-    const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
+    const uploadRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
       method: 'POST',
       credentials: 'include',
       body: formData
@@ -3061,12 +3157,12 @@ async function abrirEditorTxtVault(caminho_relativo, nomeOriginal) {
   try {
     startProgress();
 
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/download`, {
       method: 'POST',
       credentials: 'include',
+      useVault: true,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${vaultToken}`
       },
       body: JSON.stringify({ caminho_arquivo: caminho_relativo })
     });
@@ -3127,12 +3223,12 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       // ── VAULT ──────────────────────────────────
 
       // 1. Deleta o original no vault
-      const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
+      const deleteRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/deletar`, {
         method: 'DELETE',
         credentials: 'include',
+        useVault: true,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${vaultToken}`
         },
         body: JSON.stringify({
           caminho_arquivo: txtEditorCaminho,
@@ -3155,10 +3251,10 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       formData.append('files', file);
       formData.append('caminho_escolhido', pastaDestino);
 
-      const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, {
+      const uploadRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/vault/upload`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${vaultToken}` },
+        useVault: true,
         body: formData
       });
 
@@ -3172,7 +3268,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
     } else {
       // ── DRIVE NORMAL ───────────────────────────
 
-      const deleteRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
+      const deleteRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/delete`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -3195,7 +3291,7 @@ txtEditorSaveBtnNovo.addEventListener('click', async () => {
       formData.append('files', file);
       formData.append('caminho_escolhido', pastaDestino);
 
-      const uploadRes = await fetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
+      const uploadRes = await apiFetch(`${window.CONFIG.API_BASE_URL}api/atlas-drive/upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData

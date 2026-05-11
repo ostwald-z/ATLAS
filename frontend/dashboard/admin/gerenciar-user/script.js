@@ -1,18 +1,180 @@
+// ════════════════════════════════════════════════════════
+// AUTH GLOBAL WRAPPER (COOKIE-BASED)
+// ════════════════════════════════════════════════════════
+
+window.AUTH = {
+  vaultToken: null,
+  refreshPromise: null
+};
+
+// =======================================================
+// VAULT TOKEN
+// =======================================================
+
+function setVaultToken(token) {
+  window.AUTH.vaultToken = token;
+}
+
+function clearVaultToken() {
+  window.AUTH.vaultToken = null;
+}
+
+// =======================================================
+// AUTH CONTROL
+// =======================================================
+
+function clearAuth() {
+  clearVaultToken();
+}
+
+function redirectToLogin() {
+  if (window.location.pathname.includes('/login/')) return;
+  window.location.href = '../../index.html';
+}
+
+async function forceLogout() {
+  try {
+    await fetch(`${window.CONFIG.API_BASE_URL}api/user/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch (_) {}
+
+  clearAuth();
+  redirectToLogin();
+}
+
+// =======================================================
+// REFRESH TOKEN (COOKIE-BASED)
+// =======================================================
+
+async function refreshAccessToken() {
+  if (window.AUTH.refreshPromise) {
+    return window.AUTH.refreshPromise;
+  }
+
+  window.AUTH.refreshPromise = (async () => {
+    try {
+      const res = await fetch(
+        `${window.CONFIG.API_BASE_URL}api/user/refresh`,
+        {
+          method: 'POST',
+          credentials: 'include'
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error('refresh_failed');
+      }
+
+      // access token volta automaticamente via cookie
+      return true;
+
+    } catch (err) {
+      clearAuth();
+      await forceLogout();
+      throw err;
+
+    } finally {
+      window.AUTH.refreshPromise = null;
+    }
+  })();
+
+  return window.AUTH.refreshPromise;
+}
+
+// =======================================================
+// API FETCH
+// =======================================================
+
+async function apiFetch(url, options = {}, retry = true) {
+
+  const headers = new Headers(options.headers || {});
+
+  // =====================================================
+  // VAULT TOKEN
+  // só envia se explicitamente solicitado
+  // =====================================================
+
+  if (options.useVaultToken && window.AUTH.vaultToken) {
+    headers.set(
+      'X-Vault-Token',
+      `Bearer ${window.AUTH.vaultToken}`
+    );
+  }
+
+  // =====================================================
+  // CONFIG FINAL
+  // credentials include = cookies automáticos
+  // =====================================================
+
+  const config = {
+    ...options,
+    headers,
+    credentials: 'include'
+  };
+
+  let response = await fetch(url, config);
+
+  // =====================================================
+  // VAULT TOKEN EXPIRADO
+  // não tenta refresh do auth principal
+  // =====================================================
+
+  if (response.status === 401 && options.useVaultToken) {
+    clearVaultToken();
+
+    if (typeof mostrarVaultExpirado === 'function') {
+      mostrarVaultExpirado();
+    }
+
+    return response;
+  }
+
+  // =====================================================
+  // ACCESS TOKEN EXPIRADO
+  // tenta refresh via cookie refresh token
+  // =====================================================
+
+  if (response.status === 401 && retry) {
+    try {
+
+      await refreshAccessToken();
+
+      // retry automático
+      response = await fetch(url, config);
+
+    } catch (_) {
+      return response;
+    }
+  }
+
+  return response;
+}
+
+// ════════════════════════════════════════════════════════
+// FIM
+// ════════════════════════════════════════════════════════
+
+
+
 // ══════════════════════════════════════════
 // 1. VERIFICAÇÃO DE LOGIN
 // ══════════════════════════════════════════
 (async function checkAuth() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
       credentials: 'include'
     });
     if (!res.ok) {
-      window.location.href = '../../../painelDeLogin/login/index.html';
+      redirectToLogin()
+      //window.location.href = '../../../painelDeLogin/login/index.html';
       return;
     }
   } catch (err) {
-    window.location.href = '../../../painelDeLogin/login/index.html';
+    redirectToLogin(); 
+    //window.location.href = '../../../painelDeLogin/login/index.html';
   }
 })();
 
@@ -58,7 +220,7 @@ profileDropdown.addEventListener('click', (e) => e.stopPropagation());
 // Buscar Info do Admin
 async function loadUserInfo() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, { method: 'GET', credentials: 'include' });
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, { method: 'GET', credentials: 'include' });
     if (!res.ok) throw new Error();
     const data = await res.json();
     const id = data.id || data.user || data._id || '—';
@@ -76,7 +238,7 @@ loadUserInfo();
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
-  try { await fetch(`${window.CONFIG.API_BASE_URL}api/user/logout`, { method: 'POST', credentials: 'include' }); } catch {}
+  try { await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/logout`, { method: 'POST', credentials: 'include' }); } catch {}
   window.location.href = '../../../painelDeLogin/login/index.html';
 });
 
@@ -129,6 +291,13 @@ function renderUsers(usersArray) {
   usersArray.forEach(user => {
     const row = document.createElement("div");
     row.classList.add("user-row");
+    // Guardamos os dados originais aqui para comparação posterior no PATCH
+    row.dataset.id = user.id;
+    row.dataset.user = user.user;
+    row.dataset.email = user.email;
+    row.dataset.role = user.role.toLowerCase();
+    row.dataset.nome_completo = user.nome_completo || "";
+    row.dataset.obs = user.obs || "";
 
     const avatarInitials = (user.user || user.id || "??").substring(0, 2).toUpperCase();
 
@@ -142,18 +311,17 @@ function renderUsers(usersArray) {
       </div>
       <div class="user-email">${user.email}</div>
       <div><span class="badge ${user.role.toLowerCase()}">${user.role}</span></div>
-      <div><button class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Editar</button></div>
+      <div><button class="btn-edit btn-ghost" style="padding: 6px 12px; font-size: 12px;">Editar</button></div>
     `;
 
-    // Ao clicar em editar, abre o modal
-    row.querySelector('button').addEventListener('click', () => {
+    row.querySelector('.btn-edit').addEventListener('click', () => {
       document.getElementById('userId').value = user.id;
-      document.getElementById("nomeSobrenome").value = user.nome_completo
+      document.getElementById("nomeSobrenome").value = user.nome_completo || "";
       document.getElementById('nome').value = user.user;
       document.getElementById('email').value = user.email;
-      document.getElementById('privilegio').value = user.role;
+      document.getElementById('privilegio').value = user.role.toLowerCase();
       document.getElementById('obs').value = user.obs || '';
-      document.getElementById('senha').value = ''; // campo senha vem vazio
+      document.getElementById('senha').value = ''; 
       editModal.classList.add('active');
     });
 
@@ -167,7 +335,7 @@ document.getElementById("listarUsuariosBtn").addEventListener("click", async (e)
   userContainer.innerHTML = `<div class="empty-state"><p>Carregando...</p></div>`;
 
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/user/`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/`, {
       method: "GET", credentials: "include"
     });
     const data = await response.json();
@@ -196,7 +364,7 @@ document.getElementById("formBusca").addEventListener("submit", async (e) => {
   userContainer.innerHTML = `<div class="empty-state"><p>Buscando...</p></div>`;
 
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/user/${filtroId}`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/${filtroId}`, {
       method: "GET", credentials: "include"
     });
     const data = await response.json();
@@ -217,49 +385,55 @@ editForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   
   const id = document.getElementById("userId").value;
+  // Busca a linha correspondente na tabela para comparar valores
+  const row = document.querySelector(`.user-row[data-id="${id}"]`);
+  
+  if (!row) {
+    showToast("Erro ao localizar referência do usuário.", "error");
+    return;
+  }
 
-  // 1. Capturamos os valores atuais do formulário
-  const novoNome  = document.getElementById("nome").value.trim();
-  const novoEmail = document.getElementById("email").value.trim();
-  const novaSenha = document.getElementById("senha").value; // Senha não comparamos, se preencher envia
-  const novaObs   = document.getElementById("obs").value.trim();
-  const novaRole  = document.getElementById("privilegio").value;
-  const NovoNome_completo = document.getElementById("nomeSobrenome").value.trim();
-
-  // 2. Buscamos os valores originais que estão salvos na "linha" da tabela
-  // Isso evita que o backend tente validar um nome/email que já pertence a este ID
-  const row = document.querySelector(`.user-row [id*="${id}"]`)?.closest('.user-row');
-  const nomeOriginal  = row ? row.querySelector('.user-name').textContent.trim() : "";
-  const emailOriginal = row ? row.querySelector('.user-email').textContent.trim() : "";
-  const roleOriginal  = row ? row.querySelector('.badge').textContent.trim().toLowerCase() : "";
-  // Obs não costuma ficar na tabela, então tratamos de forma simples ou enviamos se mudar
-
-  // 3. Montamos o payload: se for igual ao original, enviamos "" (string vazia)
-  const payload = {
-    user:     novoNome === nomeOriginal ? "" : novoNome,
-    email:    novoEmail === emailOriginal ? "" : novoEmail,
-    senha:    novaSenha, // Se estiver vazio, o backend já ignora pelo seu service
-    obs:      novaObs,   // Normalmente enviado se houver texto
-    roleEdit: novaRole === roleOriginal ? "" : novaRole,
-    nome_completo: NovoNome_completo
+  const inputs = {
+    user: document.getElementById("nome").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    roleEdit: document.getElementById("privilegio").value,
+    nome_completo: document.getElementById("nomeSobrenome").value.trim(),
+    obs: document.getElementById("obs").value.trim(),
+    senha: document.getElementById("senha").value
   };
 
+  // Criamos o payload apenas com o que MUDOU
+  const payload = {};
+
+  if (inputs.user !== row.dataset.user) payload.user = inputs.user;
+  if (inputs.email !== row.dataset.email) payload.email = inputs.email;
+  if (inputs.roleEdit !== row.dataset.role) payload.roleEdit = inputs.roleEdit;
+  if (inputs.nome_completo !== row.dataset.nome_completo) payload.nome_completo = inputs.nome_completo;
+  if (inputs.obs !== row.dataset.obs) payload.obs = inputs.obs;
+  if (inputs.senha.length > 0) payload.senha = inputs.senha;
+
+  // Se o payload estiver vazio, não faz sentido chamar a API
+  if (Object.keys(payload).length === 0) {
+    showToast("Nenhuma alteração detectada.", "info");
+    closeModal();
+    return;
+  }
+
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/user/${id}`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify(payload)
     });
     
     const data = await response.json();
 
     if (!response.ok) {
-      showToast(`ERRO: ${data.erro || "Falha na validação"}`, 'error');
+      showToast(`ERRO: ${data.erro || "Falha na atualização"}`, 'error');
     } else {
       showToast(data.message || "Usuário atualizado!", 'success');
       closeModal();
-      document.getElementById("listarUsuariosBtn").click(); // Recarrega a lista
+      document.getElementById("listarUsuariosBtn").click(); 
     }
   } catch (err) {
     showToast('Falha ao comunicar com o servidor.', 'error');
@@ -275,7 +449,7 @@ document.getElementById("deletarUser").addEventListener("click", async () => {
   }
 
   try {
-    const response = await fetch(`${window.CONFIG.API_BASE_URL}api/user/${id}`, {
+    const response = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/${id}`, {
       method: "DELETE", credentials: "include"
     });
     const data = await response.json();

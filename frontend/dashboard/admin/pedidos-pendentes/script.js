@@ -1,3 +1,163 @@
+// ════════════════════════════════════════════════════════
+// AUTH GLOBAL WRAPPER (COOKIE-BASED)
+// ════════════════════════════════════════════════════════
+
+window.AUTH = {
+  vaultToken: null,
+  refreshPromise: null
+};
+
+// =======================================================
+// VAULT TOKEN
+// =======================================================
+
+function setVaultToken(token) {
+  window.AUTH.vaultToken = token;
+}
+
+function clearVaultToken() {
+  window.AUTH.vaultToken = null;
+}
+
+// =======================================================
+// AUTH CONTROL
+// =======================================================
+
+function clearAuth() {
+  clearVaultToken();
+}
+
+function redirectToLogin() {
+  if (window.location.pathname.includes('/login/')) return;
+  window.location.href = '../../index.html';
+}
+
+async function forceLogout() {
+  try {
+    await fetch(`${window.CONFIG.API_BASE_URL}api/user/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch (_) {}
+
+  clearAuth();
+  redirectToLogin();
+}
+
+// =======================================================
+// REFRESH TOKEN (COOKIE-BASED)
+// =======================================================
+
+async function refreshAccessToken() {
+  if (window.AUTH.refreshPromise) {
+    return window.AUTH.refreshPromise;
+  }
+
+  window.AUTH.refreshPromise = (async () => {
+    try {
+      const res = await fetch(
+        `${window.CONFIG.API_BASE_URL}api/user/refresh`,
+        {
+          method: 'POST',
+          credentials: 'include'
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error('refresh_failed');
+      }
+
+      // access token volta automaticamente via cookie
+      return true;
+
+    } catch (err) {
+      clearAuth();
+      await forceLogout();
+      throw err;
+
+    } finally {
+      window.AUTH.refreshPromise = null;
+    }
+  })();
+
+  return window.AUTH.refreshPromise;
+}
+
+// =======================================================
+// API FETCH
+// =======================================================
+
+async function apiFetch(url, options = {}, retry = true) {
+
+  const headers = new Headers(options.headers || {});
+
+  // =====================================================
+  // VAULT TOKEN
+  // só envia se explicitamente solicitado
+  // =====================================================
+
+  if (options.useVaultToken && window.AUTH.vaultToken) {
+    headers.set(
+      'X-Vault-Token',
+      `Bearer ${window.AUTH.vaultToken}`
+    );
+  }
+
+  // =====================================================
+  // CONFIG FINAL
+  // credentials include = cookies automáticos
+  // =====================================================
+
+  const config = {
+    ...options,
+    headers,
+    credentials: 'include'
+  };
+
+  let response = await fetch(url, config);
+
+  // =====================================================
+  // VAULT TOKEN EXPIRADO
+  // não tenta refresh do auth principal
+  // =====================================================
+
+  if (response.status === 401 && options.useVaultToken) {
+    clearVaultToken();
+
+    if (typeof mostrarVaultExpirado === 'function') {
+      mostrarVaultExpirado();
+    }
+
+    return response;
+  }
+
+  // =====================================================
+  // ACCESS TOKEN EXPIRADO
+  // tenta refresh via cookie refresh token
+  // =====================================================
+
+  if (response.status === 401 && retry) {
+    try {
+
+      await refreshAccessToken();
+
+      // retry automático
+      response = await fetch(url, config);
+
+    } catch (_) {
+      return response;
+    }
+  }
+
+  return response;
+}
+
+// ════════════════════════════════════════════════════════
+// FIM
+// ════════════════════════════════════════════════════════
+
+
+
 // ══════════════════════════════════════════════
 // ATLAS — Pedidos Pendentes | script.js
 // ══════════════════════════════════════════════
@@ -28,7 +188,7 @@ document.getElementById('darkModeToggle').addEventListener('click', () => {
 // ── Auth Check ─────────────────────────────────
 (async function checkAuth() {
   try {
-    const res = await fetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
+    const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -57,7 +217,7 @@ async function carregarPedidos() {
   empty.classList.add('hidden');
 
   try {
-    const res  = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper`, {
+    const res  = await apiFetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -206,7 +366,7 @@ function criarCard(pedido, index) {
 // ── Carregar detalhes do pedido ────────────────
 async function carregarDetalhes(card, id) {
   try {
-    const res  = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
+    const res  = await apiFetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -226,7 +386,7 @@ async function carregarDetalhes(card, id) {
 async function aprovar(card, id) {
   setCardLoading(card, true);
   try {
-    const res  = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
+    const res  = await apiFetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
       method: 'POST',
       credentials: 'include'
     });
@@ -248,7 +408,7 @@ async function aprovar(card, id) {
 async function recusar(card, id) {
   setCardLoading(card, true);
   try {
-    const res  = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
+    const res  = await apiFetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
       method: 'DELETE',
       credentials: 'include'
     });
@@ -276,7 +436,7 @@ async function editar(card, id) {
   const nome_completo = card.querySelector('.js-field-nome-completo').value.trim();
 
   try {
-    const res  = await fetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
+    const res  = await apiFetch(`${window.CONFIG.API_BASE_URL}api/gatekeeper/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
