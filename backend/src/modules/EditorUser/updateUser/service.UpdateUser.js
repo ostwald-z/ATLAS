@@ -209,71 +209,71 @@ async function updateUser(user,email,senha, obs, roleEdit, roleToken, id, idUser
 
         // se chegou aqui, então DE FATO, a role é ADMIN - e o usuário É ADMIN para fazer isso
         // do contrário, executa outro IF, não esse de admin
-        if(roleEdit !== "user"){
+        
+        campos.push("role = ?")
+        valores.push(roleEdit)
+        valores.push(idLimpo)
 
-            campos.push("role = ?")
-            valores.push(roleEdit)
-            valores.push(idLimpo)
 
-
-            const resultado = await repo.updateUser(campos, valores)
-            if(resultado.affectedRows === 0){
-
-                logUpdate.logUpdate({
-                    status: "falha",
-                    detalhes: "ID não encontrado",
-                    actorId: idUser,
-                    targetId: idLimpo,
-                    changes: [],
-                    httpInfo,
-                });
-                throw new AppError("ID não encontrado, nenhuma mudança feita.")
-
-            }
-
+        const resultado = await repo.updateUser(campos, valores)
+        if(resultado.affectedRows === 0){
 
             logUpdate.logUpdate({
-                status: "sucesso",
-                detalhes: "Usuário atualizado com sucesso PROMOVENDO para ADMIN",
+                status: "falha",
+                detalhes: "ID não encontrado",
                 actorId: idUser,
                 targetId: idLimpo,
-                changes,
-                httpInfo,     
+                changes: [],
+                httpInfo,
             });
-
-                const [autor] = await repo.buscarPorId(idUser)
-                const [usuario] = await repo.buscarPorId(idLimpo)
-
-                // NOTIFICA VIA TELEGRAM.
-                notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Editar Usuário</b>
-            --------------------------
-            <b>SISTEMA:</b> Atlas System
-            <b>AÇÃO:</b> Editar Usuário
-            <b>USUÁRIO:</b> ${idLimpo} -- ${usuario.user}
-            <b>STATUS:</b> Sucesso
-            <b>AUTOR:</b> ${idUser} -- ${autor.user}
-            --------------------------
-
-            OBS: O usuário foi editado promovendo (ou mantendo) ADMIN
-
-            <b>Origem da ação:</b>
-            IP: ${httpInfo?.ip}
-            Localização: ${httpInfo?.location}
-
-            <pre>${httpInfo?.userAgent}</pre>
-            --------------------------
-
-            <i>📅 Enviado em: ${new Date().toLocaleString('pt-BR')}</i>
-            `);
-
-
-
-
-
-            return resultado;
+            throw new AppError("ID não encontrado, nenhuma mudança feita.")
 
         }
+
+
+        logUpdate.logUpdate({
+            status: "sucesso",
+            detalhes: "Usuário atualizado com sucesso PROMOVENDO para ADMIN",
+            actorId: idUser,
+            targetId: idLimpo,
+            changes,
+            httpInfo,     
+        });
+
+            const [autor] = await repo.buscarPorId(idUser)
+            const [usuario] = await repo.buscarPorId(idLimpo)
+
+            // NOTIFICA VIA TELEGRAM.
+            notifyAdmin(`🚀 <b>NOVO LOG DE SISTEMA: Editar Usuário</b>
+--------------------------
+<b>SISTEMA:</b> Atlas System
+<b>AÇÃO:</b> Editar Usuário
+<b>USUÁRIO:</b> ${idLimpo} -- ${usuario.user}
+<b>STATUS:</b> Sucesso
+<b>AUTOR:</b> ${idUser} -- ${autor.user}
+--------------------------
+
+OBS: O usuário foi editado promovendo (ou mantendo) ADMIN
+
+<b>Origem da ação:</b>
+IP: ${httpInfo?.ip}
+Localização: ${httpInfo?.location}
+
+<pre>${httpInfo?.userAgent}</pre>
+--------------------------
+
+<i>📅 Enviado em: ${new Date().toLocaleString('pt-BR')}</i>`);
+
+
+
+
+
+        return resultado;
+
+    
     }
+    
+
 
 
     if(campos.length === 0){
@@ -326,8 +326,8 @@ Localização: ${httpInfo?.location}
 
 
     return resultado;
-}
 
+}
 
 
 module.exports = {updateUser}
