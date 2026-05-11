@@ -7,8 +7,11 @@ async function controller_download_arq(req, res, next) {
     try {
         const id_usuario = req.user.id;
 
-        // 🔹 AGORA vem da query (GET), não mais do body
-        const caminho_arquivo = req.query.caminho_arquivo;
+        // tenta body se for preview, ou editar txt, ou visualizar.
+        const {caminho_arquivo} = req.body
+        
+        console.log("CHEGOU controller download, caminho: ", caminho_arquivo) 
+
 
         const arquivo = await service_download.download_arquivo_service(
             caminho_arquivo,
