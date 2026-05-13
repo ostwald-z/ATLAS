@@ -116,7 +116,7 @@ function parseVaultFile(bytes) {
     throw new Error("Header JSON inválido");
   }
 
-  if (header.magic !== "PYVAULT") {
+  if (header.magic !== "PyVault Universal Format") {
     throw new Error("Magic inválida");
   }
 
@@ -516,8 +516,8 @@ async function packageAndDownload() {
     a.href = url;
 
     a.download =
-      state.filename.replace(".vault", "") +
-      "_atualizado.vault";
+      state.filename.replace(".pvt", "") +
+      "_update.pvt";
 
     a.click();
 
