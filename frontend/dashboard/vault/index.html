@@ -100,6 +100,10 @@
         </div>
         
         <div class="panel-content">
+          <div class="save-area">
+            <button id="btn-apply-edit" class="btn-primary" style="display:none;" onclick="applyEdits()">Aplicar Alterações</button>
+            <button id="btn-download-vault" class="btn-primary" style="background: var(--accent); border-color: var(--accent); color: white;" onclick="packageAndDownload()">↓ Baixar Vault Atualizado</button>
+          </div>
           <input type="hidden" id="panel-index">
           
           <label class="panel-label">Título</label>
