@@ -85,42 +85,47 @@ function loadFile(file) {
 }
 
 // ─── Parse do arquivo ────────────────────────────────────────────────────────
-// Formato: <JSON_HEADER>\n<ciphertext_bytes>
-// O header termina com o primeiro \n após o fechamento do objeto JSON '}'
+// Formato,  definido pelo oque cria, mas com o padrão de 4 bytes antes do header.
 function parseVaultFile(bytes) {
-  // Encontra fim do header JSON: busca o primeiro \n após o '}'
-  let headerEnd = -1;
-  for (let i = 0; i < bytes.length; i++) {
-    if (bytes[i] === 0x7D) { // '}'
-      headerEnd = i + 1;
-      break;
-    }
-  }
 
-  if (headerEnd === -1) {
-    throw new Error('Arquivo não é proprietário, portanto não tem estrutura interna válida para nós');
-  }
+  // lê uint32 big endian
+  const view = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength
+  );
 
-  const headerStr = new TextDecoder('utf-8').decode(bytes.slice(0, headerEnd));
+  const headerLen = view.getUint32(0, false);
+  // false = big endian
+  // equivalente ao ">I" do Python
+
+  // lê header
+  const headerBytes = bytes.slice(4, 4 + headerLen);
+
+  const headerStr = new TextDecoder().decode(headerBytes);
 
   let header;
+
   try {
     header = JSON.parse(headerStr);
   } catch (err) {
-    throw new Error('Arquivo não é proprietário, portanto não tem estrutura interna válida para nós');
+    throw new Error("Header JSON inválido");
   }
 
-  if (!header.magic || header.magic !== 'PYVAULT') {
-    throw new Error('Arquivo não é proprietário, portanto não tem estrutura interna válida para nós');
+  if (header.magic !== "PYVAULT") {
+    throw new Error("Magic inválida");
   }
 
-  // O restante (pula \n se houver) é o ciphertext
-  let cipherStart = headerEnd;
-  if (bytes[cipherStart] === 0x0A) cipherStart++; // pula \n
+  // restante do arquivo
+  const remaining = bytes.slice(4 + headerLen);
 
-  const cipherBytes = bytes.slice(cipherStart);
+  // últimos 32 bytes = HMAC SHA256
+  const mac = remaining.slice(remaining.length - 32);
 
-  return { header, cipherBytes };
+  // resto = ciphertext
+  const cipherBytes = remaining.slice(0, remaining.length - 32);
+
+  return {header, cipherBytes};
 }
 
 // ─── Unlock ───────────────────────────────────────────────────────────────────
@@ -212,8 +217,10 @@ async function decrypt(keyBytes, cipherBytes, header) {
     );
   }
 
-  const nonce      = cipherBytes.slice(0, NONCE_LEN);
-  const ciphertext = cipherBytes.slice(NONCE_LEN);
+  //cipherBytes.slice(0, NONCE_LEN);
+  const nonce = base64ToBytes(header.nonceXcha)
+
+  const ciphertext = cipherBytes
 
   try {
     const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
@@ -231,6 +238,8 @@ async function decrypt(keyBytes, cipherBytes, header) {
     );
   }
 }
+
+
 
 // ─── Render vault ─────────────────────────────────────────────────────────────
 function renderVault() {
@@ -252,13 +261,14 @@ function renderVault() {
     el.className = 'entry-item';
     el.innerHTML = `
       <div>
-        <div class="entry-name">${esc(entry.nome ?? entry.titulo ?? entry.name ?? `Entrada ${i + 1}`)}</div>
-        <div class="entry-user">${esc(entry.usuario ?? entry.username ?? entry.email ?? '')}</div>
+        <div class="entry-name">${esc(entry.titulo ?? `Entrada ${i + 1}`)}</div>
+        <div class="entry-user">${esc(entry.user ?? '')}</div>
       </div>
     `;
     list.appendChild(el);
   });
 }
+
 
 // ─── Lock ─────────────────────────────────────────────────────────────────────
 function lockVault() {
@@ -270,6 +280,8 @@ function lockVault() {
   document.getElementById('entries-list').innerHTML = '';
   showScreen('open');
 }
+
+
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 function base64ToBytes(b64) {
