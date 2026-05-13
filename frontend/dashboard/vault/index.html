@@ -88,7 +88,38 @@
 
     <div class="vault-body">
       <div id="entries-list" class="entries-list">
-        <!-- entradas injetadas via JS -->
+        </div>
+
+      <div id="secret-panel" class="secret-panel" style="display: none;">
+        <div class="panel-header">
+          <h3 id="panel-title">Detalhes do Segredo</h3>
+          <div class="panel-actions">
+            <button id="btn-edit" class="btn-primary small-btn" onclick="toggleEdit()">Editar</button>
+            <button class="btn-danger small-btn" onclick="closePanel()">Fechar</button>
+          </div>
+        </div>
+        
+        <div class="panel-content">
+          <input type="hidden" id="panel-index">
+          
+          <label class="panel-label">Título</label>
+          <input type="text" id="panel-titulo" class="pass-input" readonly>
+          
+          <label class="panel-label">Usuário</label>
+          <input type="text" id="panel-user" class="pass-input" readonly>
+          
+          <label class="panel-label">Senha</label>
+          <div class="pass-wrapper">
+             <input type="password" id="panel-senha" class="pass-input" readonly>
+             <button class="btn-primary view-btn" onclick="toggleViewPass('panel-senha')">👁</button>
+          </div>
+          
+          <label class="panel-label">Serviço / Link</label>
+          <input type="text" id="panel-servico" class="pass-input" readonly>
+          
+          <label class="panel-label">Observações</label>
+          <textarea id="panel-obs" class="pass-input textarea" readonly></textarea>
+        </div>
       </div>
     </div>
   </div>

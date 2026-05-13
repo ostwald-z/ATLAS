@@ -187,3 +187,93 @@ html, body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); }
+
+
+
+/* --- LAYOUT DIVIDIDO E PAINEL LATERAL --- */
+.vault-body {
+  display: flex;
+  flex-direction: row;
+  padding: 0; /* Substitui o padding original para colar o painel */
+  overflow: hidden;
+}
+
+.entries-list {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.secret-panel {
+  width: 340px;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+
+.panel-header h3 {
+  font-size: 12px;
+  font-weight: normal;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.panel-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.panel-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: -6px; /* Aproxima a label do input */
+  letter-spacing: 0.5px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.small-btn {
+  padding: 4px 10px;
+  width: auto;
+}
+
+.pass-wrapper {
+  display: flex;
+  gap: 6px;
+}
+
+.view-btn {
+  width: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Estado de Edição Ativo */
+.btn-editing {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}

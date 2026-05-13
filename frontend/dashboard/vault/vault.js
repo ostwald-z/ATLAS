@@ -259,6 +259,7 @@ function renderVault() {
   segredos.forEach((entry, i) => {
     const el = document.createElement('div');
     el.className = 'entry-item';
+    el.onclick = () => openSecretPanel(i)
     el.innerHTML = `
       <div>
         <div class="entry-name">${esc(entry.titulo ?? `Entrada ${i + 1}`)}</div>
@@ -310,3 +311,66 @@ function clearError(screen) {
   el.textContent = '';
   el.style.display = 'none';
 }
+
+
+
+// VISUALIZAÇÃO DOS SEGREDOS E DETALHES:
+
+// ─── Lógica do Painel Lateral (Visualizar/Editar) ─────────────────────────────
+let isEditing = false;
+
+function openSecretPanel(index) {
+  const secret = state.vault.segredos[index];
+  if (!secret) return;
+
+  document.getElementById('secret-panel').style.display = 'flex';
+  document.getElementById('panel-index').value = index;
+  
+  // Preenche os inputs com os dados (ou string vazia se não existir)
+  document.getElementById('panel-titulo').value = secret.titulo || '';
+  document.getElementById('panel-user').value = secret.user || '';
+  document.getElementById('panel-senha').value = secret.senha || '';
+  document.getElementById('panel-servico').value = secret.servico || '';
+  document.getElementById('panel-obs').value = secret.obs || '';
+
+  // Ao abrir, garante que entra no modo Leitura
+  setEditMode(false);
+}
+
+function closePanel() {
+  document.getElementById('secret-panel').style.display = 'none';
+  setEditMode(false);
+}
+
+function toggleEdit() {
+  setEditMode(!isEditing);
+}
+
+function setEditMode(enable) {
+  isEditing = enable;
+  const inputs = ['panel-titulo', 'panel-user', 'panel-senha', 'panel-servico', 'panel-obs'];
+  const btnEdit = document.getElementById('btn-edit');
+  
+  inputs.forEach(id => {
+    const el = document.getElementById(id);
+    el.readOnly = !enable;
+    
+    // Feedback visual sutil nas bordas quando está editável
+    el.style.borderColor = enable ? '#555' : 'var(--border)'; 
+  });
+
+  if (enable) {
+    btnEdit.textContent = 'Modo Edição';
+    btnEdit.classList.add('btn-editing');
+  } else {
+    btnEdit.textContent = 'Editar';
+    btnEdit.classList.remove('btn-editing');
+  }
+}
+
+function toggleViewPass(id) {
+  const input = document.getElementById(id);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+
