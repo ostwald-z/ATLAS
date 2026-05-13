@@ -1,4 +1,7 @@
 
+
+
+
 window.sodiumReadyPromise = (async () => {
   const sodium = await import("https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/+esm");
   await sodium.default.ready;
@@ -13,6 +16,7 @@ let state = {
   header: null,         // objeto JSON do header parseado
   vault: null,          // vault descriptografado (objeto)
   filename: '',
+  derivedKey: null, // Nova: Armazena a chave gerada
 };
 
 // ─── Referências DOM ─────────────────────────────────────────────────────────
@@ -119,13 +123,10 @@ function parseVaultFile(bytes) {
   // restante do arquivo
   const remaining = bytes.slice(4 + headerLen);
 
-  // últimos 32 bytes = HMAC SHA256
-  const mac = remaining.slice(remaining.length - 32);
-
   // resto = ciphertext
-  const cipherBytes = remaining.slice(0, remaining.length - 32);
+  const cipherBytes = remaining
 
-  return {header, cipherBytes};
+  return {header, cipherBytes, headerBytes};
 }
 
 // ─── Unlock ───────────────────────────────────────────────────────────────────
@@ -144,13 +145,14 @@ async function unlockVault() {
   btn.textContent = 'Derivando chave...';
 
   try {
-    const { header, cipherBytes } = parseVaultFile(state.rawFileBytes);
+    const {header, cipherBytes, headerBytes} = parseVaultFile(state.rawFileBytes);
 
     // Derivar chave com Argon2
     const key = await deriveKey(password, header);
+    state.derivedKey = key; // ARMAZENA A CHAVE GLOBALMENTE
 
     // Descriptografar com XChaCha20-Poly1305
-    const plaintext = await decrypt(key, cipherBytes, header);
+    const plaintext = await decrypt(key, cipherBytes, header, headerBytes);
 
     // Parse do vault
     const vaultText = new TextDecoder('utf-8').decode(plaintext);
@@ -197,7 +199,7 @@ async function deriveKey(password, header) {
 
 // ─── Descriptografia: XChaCha20-Poly1305 ─────────────────────────────────────
 // XChaCha20 usa nonce de 24 bytes. Esperamos: [24 bytes nonce][ciphertext+tag]
-async function decrypt(keyBytes, cipherBytes, header) {
+async function decrypt(keyBytes, cipherBytes, header, headerBytes) {
   // Aguarda inicialização do WASM (seguro chamar múltiplas vezes)
   const sodium = await window.sodiumReadyPromise;
 
@@ -221,12 +223,12 @@ async function decrypt(keyBytes, cipherBytes, header) {
   const nonce = base64ToBytes(header.nonceXcha)
 
   const ciphertext = cipherBytes
-
+  
   try {
     const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
       null,        // nsec
       ciphertext,
-      null,        // ad
+      headerBytes,        // ad
       nonce,
       keyBytes
     );
@@ -286,10 +288,10 @@ function lockVault() {
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 function base64ToBytes(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
+  return sodium.from_base64(
+    b64,
+    sodium.base64_variants.ORIGINAL
+  );
 }
 
 function esc(str) {
@@ -346,19 +348,27 @@ function toggleEdit() {
   setEditMode(!isEditing);
 }
 
+// ─── Lógica Unificada do Painel (Visualizar/Editar/Salvar) ──────────────────
+
 function setEditMode(enable) {
   isEditing = enable;
   const inputs = ['panel-titulo', 'panel-user', 'panel-senha', 'panel-servico', 'panel-obs'];
   const btnEdit = document.getElementById('btn-edit');
+  const btnApply = document.getElementById('btn-apply-edit');
   
+  // Ativa/Desativa a edição dos campos
   inputs.forEach(id => {
     const el = document.getElementById(id);
-    el.readOnly = !enable;
-    
-    // Feedback visual sutil nas bordas quando está editável
-    el.style.borderColor = enable ? '#555' : 'var(--border)'; 
+    if (el) {
+      el.readOnly = !enable;
+      // Feedback visual: borda mais clara quando editável
+      el.style.borderColor = enable ? '#666' : 'var(--border)';
+    }
   });
 
+  // Alterna visibilidade dos botões
+  btnApply.style.display = enable ? 'block' : 'none';
+  
   if (enable) {
     btnEdit.textContent = 'Modo Edição';
     btnEdit.classList.add('btn-editing');
@@ -368,9 +378,154 @@ function setEditMode(enable) {
   }
 }
 
-function toggleViewPass(id) {
-  const input = document.getElementById(id);
-  input.type = input.type === 'password' ? 'text' : 'password';
+// 1. Aplica as mudanças do formulário ao objeto em memória (state.vault)
+function applyEdits() {
+  const index = document.getElementById('panel-index').value;
+  if (index === "") return;
+
+  const updatedSecret = {
+    titulo:  document.getElementById('panel-titulo').value,
+    user:    document.getElementById('panel-user').value,
+    senha:   document.getElementById('panel-senha').value,
+    servico: document.getElementById('panel-servico').value,
+    obs:     document.getElementById('panel-obs').value
+  };
+
+  // Atualiza o dado no estado global
+  state.vault.segredos[index] = updatedSecret;
+  
+  // Atualiza a UI
+  renderVault();
+  setEditMode(false);
+  alert("Alterações aplicadas na memória. Use o botão de download para salvar no arquivo.");
 }
 
+
+
+// função necessária para ORDENAR VALORES em JSON no arquivo , padrão deterministico.
+function sortObjectKeys(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(sortObjectKeys);
+  }
+
+  if (obj !== null && typeof obj === "object") {
+    return Object.keys(obj)
+      .sort()
+      .reduce((result, key) => {
+        result[key] = sortObjectKeys(obj[key]);
+        return result;
+      }, {});
+  }
+
+  return obj;
+}
+
+
+async function packageAndDownload() {
+  const sodium = await window.sodiumReadyPromise;
+
+  if (!state.derivedKey) {
+    alert("Erro: Chave de criptografia não encontrada.");
+    return;
+  }
+
+  try {
+
+    // =========================
+    // plaintext
+    // =========================
+    const jsonStr = JSON.stringify(state.vault);
+    const plaintext = new TextEncoder().encode(jsonStr);
+
+    // =========================
+    // nonce
+    // =========================
+    const nonce = sodium.randombytes_buf(
+      sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+    );
+    
+    // SALVA NO HEADER NOVO NONCE
+    state.header.nonceXcha = sodium.to_base64(
+      nonce,
+      sodium.base64_variants.ORIGINAL
+    );
+    
+    //NÃO REUTILIZA, CRIA NOVO toda vez que criptografa.
+    //const nonce = base64ToBytes(state.header.nonceXcha);
+
+
+    // =========================
+    // HEADER ORDENADO
+    // equivalente ao:
+    // json.dumps(sort_keys=True)
+    // =========================
+
+    const sortedHeader = sortObjectKeys(state.header);
+
+    const headerJson = JSON.stringify(sortedHeader);
+
+    const headerBytes = new TextEncoder().encode(headerJson);
+
+    // =========================
+    // encrypt
+    // =========================
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      plaintext,
+      headerBytes,
+      null,
+      nonce,
+      state.derivedKey
+    );
+
+    // =========================
+    // arquivo final
+    // =========================
+
+    const totalSize =
+      4 +
+      headerBytes.length +
+      ciphertext.length
+
+    const finalFile = new Uint8Array(totalSize);
+
+    const view = new DataView(finalFile.buffer);
+
+    // BIG ENDIAN
+    view.setUint32(0, headerBytes.length, false);
+
+    // header
+    finalFile.set(headerBytes, 4);
+
+    // ciphertext
+    finalFile.set(ciphertext, 4 + headerBytes.length);
+
+
+    // =========================
+    // download
+    // =========================
+
+    const blob = new Blob(
+      [finalFile],
+      { type: 'application/octet-stream' }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+
+    a.href = url;
+
+    a.download =
+      state.filename.replace(".vault", "") +
+      "_atualizado.vault";
+
+    a.click();
+
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao gerar o arquivo criptografado.");
+  }
+}
 
