@@ -17,13 +17,37 @@ let state = {
   vault: null,          // vault descriptografado (objeto)
   filename: '',
   plainTextKEY: null, // Nova: Armazena a chave gerada
+  lockedBytes:        null,   // ← ADICIONAR
+  lockedHeader:       null,   // ← ADICIONAR
+  lockedHeaderBytes:  null,   // ← ADICIONAR
 };
+
+
+
+// Reset completo (trocar arquivo a partir da tela de lock)
+function fullReset() {
+  state = {
+    rawFileBytes: null, header: null, vault: null,
+    filename: '', plainTextKEY: null,
+    lockedBytes: null, lockedHeader: null, lockedHeaderBytes: null,
+  };
+  document.getElementById('password-input').value = '';
+  document.getElementById('locked-pass-input').value = '';
+  document.getElementById('drop-label').textContent = 'Clique para abrir arquivo .pvt';
+  clearError('locked');
+  showScreen('open');
+}
+
+
+
 
 // ─── Referências DOM ─────────────────────────────────────────────────────────
 const screens = {
   open:     document.getElementById('screen-open'),
   password: document.getElementById('screen-password'),
   vault:    document.getElementById('screen-vault'),
+  create:   document.getElementById('screen-create'),
+  locked:   document.getElementById('screen-locked'),
 };
 
 // ─── Navegação entre telas ───────────────────────────────────────────────────
@@ -63,6 +87,44 @@ dropZone.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (file) loadFile(file);
 });
+
+
+
+
+// ─── Força de senha (tela criar) ──────────────────────────────────────────────
+document.getElementById('create-pass').addEventListener('input', function () {
+  const wrap  = document.getElementById('create-strength');
+  const bar   = document.getElementById('create-strength-bar');
+  const label = document.getElementById('create-strength-label');
+  const v = this.value;
+
+  if (!v) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+
+  let score = 0;
+  if (v.length >= 8)  score++;
+  if (v.length >= 14) score++;
+  if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+  if (/\d/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+
+  const levels = [
+    { color: '#8a4040', text: 'fraca'  },
+    { color: '#8a6040', text: 'fraca'  },
+    { color: '#8a7a40', text: 'média'  },
+    { color: '#5a7a40', text: 'boa'    },
+    { color: '#3a7a5a', text: 'forte'  },
+    { color: '#3a6a8a', text: 'ótima'  },
+  ];
+  const lvl = levels[Math.min(score, 5)];
+  bar.style.background = lvl.color;
+  bar.style.width = `${(score / 5) * 100}%`;
+  label.textContent = lvl.text;
+  label.style.color = lvl.color;
+});
+
+
+
 
 function loadFile(file) {
   clearError('open');
@@ -212,8 +274,7 @@ async function decrypt(keyBytes, cipherBytes, header, headerBytes) {
   }
   
 
-  const NONCE_LEN = 24;
-  if (cipherBytes.length < NONCE_LEN + 16) {
+  if (cipherBytes.length < 16) {
     throw Object.assign(
       new Error('Ciphertext muito curto para ser válido.'),
       { userMessage: 'Arquivo corrompido ou senha incorreta.' }
@@ -274,15 +335,112 @@ function renderVault() {
 }
 
 
-// ─── Lock ─────────────────────────────────────────────────────────────────────
-function lockVault() {
-  // Limpa tudo da memória
-  state.vault = null;
-  state.header = null;
-  state.rawFileBytes = null;
-  document.getElementById('password-input').value = '';
-  document.getElementById('entries-list').innerHTML = '';
-  showScreen('open');
+
+
+
+
+// ─── Lock: re-encripta o vault atual e limpa o plaintext da memória ───────────
+async function lockVault() {
+  const sodium = await window.sodiumReadyPromise;
+
+  if (!state.vault || !state.plainTextKEY) {
+    fullReset();
+    return;
+  }
+
+  try {
+    // Gera salt e nonce frescos para o estado bloqueado
+    const salt  = sodium.randombytes_buf(32);
+    const nonce = sodium.randombytes_buf(
+      sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+    );
+
+    const lockHeader = {
+      ...state.header,
+      salt:      sodium.to_base64(salt,  sodium.base64_variants.ORIGINAL),
+      nonceXcha: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+    };
+
+    const plaintext   = new TextEncoder().encode(JSON.stringify(state.vault));
+    const sortedHdr   = sortObjectKeys(lockHeader);
+    const headerBytes = new TextEncoder().encode(JSON.stringify(sortedHdr));
+
+    const key = await deriveKey(state.plainTextKEY, lockHeader);
+
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      plaintext, headerBytes, null, nonce, key
+    );
+
+    // Persiste cifrado
+    state.lockedBytes       = ciphertext;
+    state.lockedHeader      = lockHeader;
+    state.lockedHeaderBytes = headerBytes;
+
+    // Apaga plaintext e chave da memória
+    state.vault        = null;
+    state.plainTextKEY = null;
+
+    document.getElementById('locked-filename').textContent = state.filename;
+    document.getElementById('locked-pass-input').value = '';
+    clearError('locked');
+    showScreen('locked');
+
+  } catch (err) {
+    console.error('[Atlas Vault] Erro ao bloquear:', err);
+    alert('Erro ao bloquear vault.');
+  }
+}
+
+
+
+
+// ─── Unlock a partir da tela de lock ──────────────────────────────────────────
+document.getElementById('locked-pass-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') unlockLocked();
+});
+
+async function unlockLocked() {
+  const sodium = await window.sodiumReadyPromise;
+  clearError('locked');
+
+  const pass = document.getElementById('locked-pass-input').value;
+  if (!pass) { showError('locked', 'Insira a senha.'); return; }
+
+  const btn = document.getElementById('btn-unlock-locked');
+  btn.disabled = true;
+  btn.textContent = 'Verificando...';
+
+  try {
+    const key = await deriveKey(pass, state.lockedHeader);
+
+    const nonce = base64ToBytes(state.lockedHeader.nonceXcha);
+
+    const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+      null,
+      state.lockedBytes,
+      state.lockedHeaderBytes,
+      nonce,
+      key
+    );
+
+    // Restaura vault com todas as edições intactas
+    state.vault        = JSON.parse(new TextDecoder().decode(plaintext));
+    state.plainTextKEY = pass;
+
+    // Limpa estado de lock
+    state.lockedBytes       = null;
+    state.lockedHeader      = null;
+    state.lockedHeaderBytes = null;
+
+    renderVault();
+    showScreen('vault');
+
+  } catch (err) {
+    showError('locked', 'Senha incorreta ou vault corrompido.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Desbloquear';
+  }
 }
 
 
@@ -317,6 +475,17 @@ function clearError(screen) {
 
 
 
+// ─── Visualizar Senha (Bugfix) ───────────────────────────────────────────────
+function toggleViewPass(inputId) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+  } else {
+    input.type = 'password';
+  }
+}
+
+
 // VISUALIZAÇÃO DOS SEGREDOS E DETALHES:
 
 // ─── Lógica do Painel Lateral (Visualizar/Editar) ─────────────────────────────
@@ -349,6 +518,48 @@ function toggleEdit() {
   setEditMode(!isEditing);
 }
 
+
+
+// ─── Criar e Excluir Segredos ────────────────────────────────────────────────
+
+function createNewSecret() {
+  document.getElementById('secret-panel').style.display = 'flex';
+  
+  // Usamos 'new' como flag para saber que não estamos editando um existente
+  document.getElementById('panel-index').value = 'new';
+  
+  // Limpa todos os campos para o novo segredo
+  document.getElementById('panel-titulo').value = '';
+  document.getElementById('panel-user').value = '';
+  document.getElementById('panel-senha').value = '';
+  document.getElementById('panel-servico').value = '';
+  document.getElementById('panel-obs').value = '';
+
+  // Já abre direto no modo de edição
+  setEditMode(true);
+  document.getElementById('panel-titulo').focus();
+}
+
+function deleteSecret() {
+  const index = document.getElementById('panel-index').value;
+  
+  // Se o cara clicou em "Novo" e logo em seguida clicou em "Excluir", só fecha o painel
+  if (index === 'new' || index === "") {
+    closePanel();
+    return;
+  }
+
+  // Confirmação de segurança para não apagar sem querer
+  if (confirm("Tem certeza que deseja excluir este segredo permanentemente?")) {
+    state.vault.segredos.splice(index, 1); // Remove do array no estado da memória
+    closePanel();
+    renderVault();
+    alert("Segredo removido! Use o botão 'Baixar Vault Atualizado' para salvar no arquivo .pvt.");
+  }
+}
+
+
+
 // ─── Lógica Unificada do Painel (Visualizar/Editar/Salvar) ──────────────────
 
 function setEditMode(enable) {
@@ -379,28 +590,47 @@ function setEditMode(enable) {
   }
 }
 
+
 // 1. Aplica as mudanças do formulário ao objeto em memória (state.vault)
 function applyEdits() {
   const index = document.getElementById('panel-index').value;
-  if (index === "") return;
+  const tituloInput = document.getElementById('panel-titulo').value.trim();
+  
+  // REGRA: Título não pode ser vazio
+  if (!tituloInput) {
+    alert("O título do segredo é obrigatório! Preencha para não quebrar o Vault.");
+    document.getElementById('panel-titulo').focus();
+    return;
+  }
 
   const updatedSecret = {
-    titulo:  document.getElementById('panel-titulo').value,
+    titulo:  tituloInput,
     user:    document.getElementById('panel-user').value,
     senha:   document.getElementById('panel-senha').value,
     servico: document.getElementById('panel-servico').value,
     obs:     document.getElementById('panel-obs').value
   };
 
-  // Atualiza o dado no estado global
-  state.vault.segredos[index] = updatedSecret;
+  // Se o array de segredos não existir por algum motivo, inicializa ele
+  if (!state.vault.segredos) {
+    state.vault.segredos = [];
+  }
+
+  if (index === 'new') {
+    // É um segredo totalmente novo: empurra pro array
+    state.vault.segredos.push(updatedSecret);
+    // Atualiza o index oculto para o ID real recém-criado (caso o usuário continue editando)
+    document.getElementById('panel-index').value = state.vault.segredos.length - 1;
+  } else {
+    // É uma edição de um segredo existente: apenas atualiza
+    state.vault.segredos[index] = updatedSecret;
+  }
   
   // Atualiza a UI
   renderVault();
   setEditMode(false);
-  alert("Alterações aplicadas na memória. Use o botão de download para salvar no arquivo.");
+  alert("Alterações aplicadas na memória. Use o botão de download para salvar no arquivo .pvt.");
 }
-
 
 
 // função necessária para ORDENAR VALORES em JSON no arquivo , padrão deterministico.
@@ -538,4 +768,106 @@ async function packageAndDownload() {
     alert("Erro ao gerar o arquivo criptografado.");
   }
 }
+
+
+
+
+
+
+// ─── Criar novo vault ─────────────────────────────────────────────────────────
+async function createVault() {
+  const sodium = await window.sodiumReadyPromise;
+  clearError('create');
+
+  const name    = document.getElementById('create-name').value.trim();
+  const pass    = document.getElementById('create-pass').value;
+  const pass2   = document.getElementById('create-pass2').value;
+
+  if (!name)          { showError('create', 'Insira um nome para o vault.'); return; }
+  if (!pass)          { showError('create', 'Insira a senha mestra.'); return; }
+  if (pass !== pass2) { showError('create', 'As senhas não coincidem.'); return; }
+
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true;
+  btn.textContent = 'Derivando chave...';
+
+  try {
+    // Vault vazio inicial
+    const vault = { segredos: [] };
+
+    // Criptografia: gera salt e nonce frescos
+    const salt  = sodium.randombytes_buf(32);
+    const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+
+    const saltB64  = sodium.to_base64(salt,  sodium.base64_variants.ORIGINAL);
+    const nonceB64 = sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL);
+
+    // Header PyVault v3 — mesmos campos do Python
+    const header = {
+      version:       3.0,
+      magic:         "PyVault Universal Format",
+      "spec-intern": "OGWD Secure Vault Specification v3",
+      creator:       "Ostwald Gerhardt Wolffdick",
+      kdf:           "Argon2id",
+      kdf_params: {
+        time_cost:    3,
+        memory_cost:  65536,   // 64 MB em KB
+        parallelism:  4,
+      },
+      salt:      saltB64,
+      nonceXcha: nonceB64,
+      cipher:    "XChaCha20-poly1305",
+    };
+
+    // Deriva chave com Argon2id
+    const key = await deriveKey(pass, header);
+
+    btn.textContent = 'Cifrando...';
+
+    const plaintext   = new TextEncoder().encode(JSON.stringify(vault));
+    const sortedHdr   = sortObjectKeys(header);
+    const headerJson  = JSON.stringify(sortedHdr);
+    const headerBytes = new TextEncoder().encode(headerJson);
+
+    // Cifra com XChaCha20-Poly1305 (header como AAD)
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      plaintext,
+      headerBytes,
+      null,
+      nonce,
+      key
+    );
+
+    // Monta arquivo: [4 bytes big-endian header_len][header][ciphertext]
+    const totalSize = 4 + headerBytes.length + ciphertext.length;
+    const finalFile = new Uint8Array(totalSize);
+    new DataView(finalFile.buffer).setUint32(0, headerBytes.length, false);
+    finalFile.set(headerBytes, 4);
+    finalFile.set(ciphertext, 4 + headerBytes.length);
+
+    // Download direto
+    const blob = new Blob([finalFile], { type: 'application/octet-stream' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = name.replace(/[^a-zA-Z0-9_\-]/g, '_') + '.pvt';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Limpa e volta pra tela inicial
+    document.getElementById('create-name').value  = '';
+    document.getElementById('create-pass').value  = '';
+    document.getElementById('create-pass2').value = '';
+    document.getElementById('create-strength').style.display = 'none';
+    showScreen('open');
+
+  } catch (err) {
+    console.error('[Atlas Vault] Erro ao criar vault:', err);
+    showError('create', 'Erro ao criar: ' + (err.message || 'verifique o console.'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar e Baixar .pvt';
+  }
+}
+
 
