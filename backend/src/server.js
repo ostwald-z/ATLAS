@@ -28,6 +28,15 @@ server.use(cors({
 }))
 
 
+
+// isso é necessário, para suportar arquivos BINÁRIOS que vem na rota de salvar Vault.
+// mantendo padrao de envio que é "octed-stream"
+server.use(
+  '/api/vault/atualizarVault/:VaultName',
+  express.raw({ type: 'application/octet-stream', limit: '700mb' }) // ajusta o limite conforme necessário
+);
+
+
 server.use(express.urlencoded({ extended: true }));
 server.use(express.json())
 server.use(httpInfoMiddleware)
