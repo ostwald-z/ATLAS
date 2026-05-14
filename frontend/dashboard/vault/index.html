@@ -23,8 +23,20 @@
 <body>
 
 
-  <!-- TELA 1: Selecionar arquivo | https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/modules/libsodium-wrappers.js-->
-  <div id="screen-open" class="screen active">
+  <!-- TELA 1: Selecionar arquivo -->
+  <!-- TELA 1: Selecionar arquivo -->
+<div id="screen-open" class="screen active">
+
+  <!-- SIDEBAR ESQUERDA: Vaults sincronizados com o servidor -->
+  <div class="open-sidebar">
+    <div class="open-sidebar-header">VAULTS DO SERVIDOR</div>
+    <div id="server-vault-list" class="server-vault-list">
+      <!-- Populado por fetchUserVaults() ao carregar a página -->
+    </div>
+  </div>
+
+  <!-- ÁREA CENTRAL: Abrir arquivo local ou criar novo (conteúdo original) -->
+  <div class="open-main">
     <div class="center-box">
       <div class="logo">
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -45,9 +57,10 @@
       <div id="error-open" class="error-msg" style="display:none"></div>
       <div class="or-divider">ou</div>
       <button class="btn-secondary-link" onclick="showScreen('create')">+ Criar novo vault</button>
-
     </div>
   </div>
+
+</div>
 
   <!-- TELA 2: Inserir senha -->
   <div id="screen-password" class="screen">
@@ -82,15 +95,34 @@
           <circle cx="20" cy="20" r="3" fill="#888"/>
         </svg>
         <span>ATLAS VAULT</span>
-        <button class="btn-save" onclick="packageAndDownload()">
-          <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 3V15" />
-              <path d="M7 10L12 15L17 10" />
-              <path d="M5 21H19" />
-          </svg>
+        <!-- Grupo de botões de salvar — alternado por renderVault() conforme origem do vault -->
+        <div class="save-btn-group">
 
-          <span>Salvar Vault</span>
-        </button>
+          <!-- Modo local: vault veio de arquivo — só download (padrão) -->
+          <button id="btn-save-local" class="btn-save" onclick="packageAndDownload()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3V15" /><path d="M7 10L12 15L17 10" /><path d="M5 21H19" />
+            </svg>
+            <span>Salvar Vault</span>
+          </button>
+
+          <!-- Modo servidor: vault veio do backend — salva direto no banco -->
+          <button id="btn-save-server" class="btn-save" style="display:none" onclick="saveVaultToServer()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3V15" /><path d="M7 10L12 15L17 10" /><path d="M5 21H19" />
+            </svg>
+            <span>Salvar Banco de Senhas</span>
+          </button>
+
+          <!-- Modo servidor: também disponibiliza download local -->
+          <button id="btn-download-updated" class="btn-save btn-save-secondary" style="display:none" onclick="packageAndDownload()" title="Gera um .pvt local com as últimas edições">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3V15" /><path d="M7 10L12 15L17 10" /><path d="M5 21H19" />
+            </svg>
+            <span>Baixar arquivo atualizado</span>
+          </button>
+        </div>
+
       </div>
       <div class="vault-actions">
         <span id="vault-info" class="vault-info"></span>
@@ -161,7 +193,9 @@
     <input type="text"     id="create-name"    class="pass-input" placeholder="Nome do vault (ex: pessoal)" autocomplete="off" spellcheck="false">
     <input type="password" id="create-pass"    class="pass-input" placeholder="Senha mestra" autocomplete="off" spellcheck="false">
     <input type="password" id="create-pass2"   class="pass-input" placeholder="Confirmar senha" autocomplete="off" spellcheck="false">
-    
+    <input type="text" id="kdf-memory"       class="pass-input" placeholder="KDF Memory Cost (in MB - 64 default)" autocomplete="off" spellcheck="false">
+    <input type="text" id="kdf-time"         class="pass-input" placeholder="KDF Time Cost (3 default)" autocomplete="off" spellcheck="false">
+    <input type="text" id="kdf-paralelism"   class="pass-input" placeholder="KDF Paralelism (4 default)" autocomplete="off" spellcheck="false">
 
 
     <div id="create-strength" class="strength-bar-wrap" style="display:none">
@@ -174,6 +208,41 @@
     <div id="error-create" class="error-msg" style="display:none"></div>
 
     <a href="#" class="back-link" onclick="showScreen('open')">← Voltar</a>
+
+    <div class="kdf-info-panel">
+      <div class="kdf-item">
+        <div class="kdf-item-title">Memory Cost (RAM)</div>
+        <div class="kdf-item-desc">Protege contra ataques de força bruta usando placas de vídeo (GPUs). Valores altos podem travar navegadores mais fracos.</div>
+        <div class="kdf-scale">
+          <div class="kdf-step danger" title="Inseguro">< 32</div>
+          <div class="kdf-step safe" title="Recomendado">64 ~ 256</div>
+          <div class="kdf-step warning" title="Extremo">512+</div>
+        </div>
+      </div>
+
+      <div class="kdf-item">
+        <div class="kdf-item-title">Time Cost (Iterações)</div>
+        <div class="kdf-item-desc">Quantas vezes o cálculo será refeito. Aumenta o tempo necessário para testar cada senha.</div>
+        <div class="kdf-scale">
+          <div class="kdf-step danger" title="Inseguro">< 2</div>
+          <div class="kdf-step safe" title="Recomendado">3 ~ 10</div>
+          <div class="kdf-step warning" title="Lento">20+</div>
+        </div>
+      </div>
+
+      <div class="kdf-item">
+        <div class="kdf-item-title">Parallelism (Threads)</div>
+        <div class="kdf-item-desc">Gera cálculos paralelos baseados nos núcleos do processador (CPU).</div>
+        <div class="kdf-scale">
+          <div class="kdf-step danger" title="Básico">1</div>
+          <div class="kdf-step safe" title="Recomendado">2 ~ 4</div>
+          <div class="kdf-step warning" title="Alto">8+</div>
+        </div>
+      </div>
+    </div>
+
+
+
   </div>
 </div>
 
@@ -210,10 +279,16 @@
 
 
 
+<!-- Menu de contexto (botão direito na lista de vaults) -->
+<div id="ctx-menu" class="ctx-menu">
+  <div class="ctx-menu-item" onclick="deleteVaultFromServer(_ctxTargetVault)">
+    ✕ &nbsp;Remover do servidor
+  </div>
+</div>
 
 
-
-
+  <script src="../../config.js"></script>
   <script src="vault.js"></script>
+
 </body>
 </html>
