@@ -5,11 +5,14 @@ const rotaKeeper = require("../modules/TheGateKeeper/rotas.gatekeeper")
 const rotaImpersonate = require("../modules/Impersonate/rotas.impersonate")
 const rotaAtlasDrive = require("../modules/AtlasDrive/rotasAtlasDrive")
 const rotaLogs = require("../modules/audit-logs/rotas-logs")
+const rotaVault = require("../modules/vault/rotasVault")
+
 
 rotaGeral.use("/user", rotaUser)
 rotaGeral.use("/gatekeeper", rotaKeeper)
 rotaGeral.use("/impersonate", rotaImpersonate)
 rotaGeral.use("/atlas-drive", rotaAtlasDrive)
 rotaGeral.use("/logs", rotaLogs)
+rotaGeral.use("/vault", rotaVault)
 
 module.exports = rotaGeral
