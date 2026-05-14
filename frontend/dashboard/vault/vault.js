@@ -17,6 +17,8 @@ let state = {
   vault: null,          // vault descriptografado (objeto)
   filename: '',
   plainTextKEY: null, // Nova: Armazena a chave gerada
+  deriveKey: null, // salva KDF da chave, para LOCK de vault ser mais rapido.
+  nonceBytes: null,
   lockedBytes:        null,   // ← ADICIONAR
   lockedHeader:       null,   // ← ADICIONAR
   lockedHeaderBytes:  null,   // ← ADICIONAR
@@ -28,7 +30,7 @@ let state = {
 function fullReset() {
   state = {
     rawFileBytes: null, header: null, vault: null,
-    filename: '', plainTextKEY: null,
+    filename: '', plainTextKEY: null, deriveKey: null,
     lockedBytes: null, lockedHeader: null, lockedHeaderBytes: null,
   };
   document.getElementById('password-input').value = '';
@@ -211,6 +213,7 @@ async function unlockVault() {
 
     // Derivar chave com Argon2
     const key = await deriveKey(password, header);
+    state.deriveKey = key // armazena pra LOCK VAULT visual ser mais rapido, com criptografia de um KDF da chave pronto, sendo mais rápido.
     state.plainTextKEY = password; // ARMAZENA A CHAVE GLOBALMENTE EM TEXTO PLANO (para salvar no futuro, com NOVO KDF)
     // e garantir aleatoriedade, não reutilizar salt e nem "nonce", gera KDF totalmente novo
 
@@ -283,6 +286,7 @@ async function decrypt(keyBytes, cipherBytes, header, headerBytes) {
 
   //cipherBytes.slice(0, NONCE_LEN);
   const nonce = base64ToBytes(header.nonceXcha)
+  state.nonceBytes = nonce
 
   const ciphertext = cipherBytes
   
@@ -337,10 +341,14 @@ function renderVault() {
 
 
 
-
+const nextFrame = () => new Promise(requestAnimationFrame);
 
 // ─── Lock: re-encripta o vault atual e limpa o plaintext da memória ───────────
 async function lockVault() {
+
+  showScreen('locked')
+  await nextFrame()
+
   const sodium = await window.sodiumReadyPromise;
 
   if (!state.vault || !state.plainTextKEY) {
@@ -349,26 +357,17 @@ async function lockVault() {
   }
 
   try {
-    // Gera salt e nonce frescos para o estado bloqueado
-    const salt  = sodium.randombytes_buf(32);
-    const nonce = sodium.randombytes_buf(
-      sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
-    );
 
-    const lockHeader = {
-      ...state.header,
-      salt:      sodium.to_base64(salt,  sodium.base64_variants.ORIGINAL),
-      nonceXcha: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
-    };
+
+
+    const lockHeader = state.header;
 
     const plaintext   = new TextEncoder().encode(JSON.stringify(state.vault));
     const sortedHdr   = sortObjectKeys(lockHeader);
     const headerBytes = new TextEncoder().encode(JSON.stringify(sortedHdr));
 
-    const key = await deriveKey(state.plainTextKEY, lockHeader);
-
     const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-      plaintext, headerBytes, null, nonce, key
+      plaintext, headerBytes, null, state.nonceBytes, state.deriveKey
     );
 
     // Persiste cifrado
@@ -376,14 +375,15 @@ async function lockVault() {
     state.lockedHeader      = lockHeader;
     state.lockedHeaderBytes = headerBytes;
 
-    // Apaga plaintext e chave da memória
+    // Apaga plaintext e chave da memória e kdf e etc
     state.vault        = null;
     state.plainTextKEY = null;
+    state.deriveKey = null;
+    state.nonceBytes = null;
 
     document.getElementById('locked-filename').textContent = state.filename;
     document.getElementById('locked-pass-input').value = '';
     clearError('locked');
-    showScreen('locked');
 
   } catch (err) {
     console.error('[Atlas Vault] Erro ao bloquear:', err);
@@ -412,12 +412,19 @@ async function unlockLocked() {
 
   try {
     const key = await deriveKey(pass, state.lockedHeader);
-
+    state.deriveKey = key; // guarda "novo" KDF para possivel outro uso em BLOQUEAR
+    // lembrando que, ao usuario BAIXAR arquivo atualizado = outro KDF será gerado.
+    
     const nonce = base64ToBytes(state.lockedHeader.nonceXcha);
+    state.nonceBytes = lockHeader.nonceXcha;
+
+
+    // pegamos KDF e nonceBytes novamente, pois POR SEGURANÇA, pós lockVault
+    // zeramos todas as infos que temos do usuário, então naquele momento especifico = não sabemos de nada, apenas de seu Header.
 
     const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
       null,
-      state.lockedBytes,
+      state.lockedBytes, //ciphertext  (vault)
       state.lockedHeaderBytes,
       nonce,
       key
