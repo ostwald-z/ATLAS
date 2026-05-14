@@ -16,7 +16,7 @@ let state = {
   header: null,         // objeto JSON do header parseado
   vault: null,          // vault descriptografado (objeto)
   filename: '',
-  derivedKey: null, // Nova: Armazena a chave gerada
+  plainTextKEY: null, // Nova: Armazena a chave gerada
 };
 
 // ─── Referências DOM ─────────────────────────────────────────────────────────
@@ -149,7 +149,8 @@ async function unlockVault() {
 
     // Derivar chave com Argon2
     const key = await deriveKey(password, header);
-    state.derivedKey = key; // ARMAZENA A CHAVE GLOBALMENTE
+    state.plainTextKEY = password; // ARMAZENA A CHAVE GLOBALMENTE EM TEXTO PLANO (para salvar no futuro, com NOVO KDF)
+    // e garantir aleatoriedade, não reutilizar salt e nem "nonce", gera KDF totalmente novo
 
     // Descriptografar com XChaCha20-Poly1305
     const plaintext = await decrypt(key, cipherBytes, header, headerBytes);
@@ -424,7 +425,7 @@ function sortObjectKeys(obj) {
 async function packageAndDownload() {
   const sodium = await window.sodiumReadyPromise;
 
-  if (!state.derivedKey) {
+  if (!state.plainTextKEY) {
     alert("Erro: Chave de criptografia não encontrada.");
     return;
   }
@@ -449,10 +450,19 @@ async function packageAndDownload() {
       nonce,
       sodium.base64_variants.ORIGINAL
     );
-    
-    //NÃO REUTILIZA, CRIA NOVO toda vez que criptografa.
-    //const nonce = base64ToBytes(state.header.nonceXcha);
 
+
+    // gera NOVO SALT (para KDF da chave novamente)
+    const salt = sodium.randombytes_buf(32); // Gera 32 bytes criptograficamente seguros
+
+    // converte o salt para BASE64 para transporte no JSON
+    const saltB64 = sodium.to_base64(salt, sodium.base64_variants.ORIGINAL); // Conversão limpa
+
+    //salva no header NOVO SALT
+    state.header.salt = saltB64
+
+    // GERA A CHAVE DENOVO COM NOVO KDF E COM NOVO SALT
+    const nova_chave_user_derivada = await deriveKey(state.plainTextKEY, state.header)
 
     // =========================
     // HEADER ORDENADO
@@ -474,7 +484,7 @@ async function packageAndDownload() {
       headerBytes,
       null,
       nonce,
-      state.derivedKey
+      nova_chave_user_derivada
     );
 
     // =========================
