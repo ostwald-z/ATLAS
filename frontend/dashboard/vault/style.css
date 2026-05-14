@@ -460,3 +460,217 @@ html, body {
   letter-spacing: 2px;
   margin-top: -8px;
 }
+
+
+
+
+
+
+
+
+/* --- PAINEL KDF (TELA DE CRIAÇÃO) --- */
+#screen-create {
+  gap: 40px; /* Separa o formulário do painel de dicas */
+  flex-wrap: wrap; /* Permite quebrar linha em telas pequenas */
+}
+
+.kdf-info-panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  border-left: 1px dashed var(--border);
+  padding-left: 40px;
+}
+
+.kdf-item-title {
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.kdf-item-desc {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+}
+
+.kdf-scale {
+  display: flex;
+  height: 24px;
+  gap: 4px;
+}
+
+.kdf-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text-dim);
+  cursor: default;
+  transition: all 0.2s ease;
+}
+
+/* Cores das escalas */
+.kdf-step.danger { border-color: var(--error); color: var(--error); background: rgba(192, 96, 96, 0.05); }
+.kdf-step.safe { border-color: var(--accent); color: var(--accent); background: rgba(90, 138, 106, 0.05); }
+.kdf-step.warning { border-color: #b89030; color: #b89030; background: rgba(184, 144, 48, 0.05); }
+
+/* Hover opcional para dar um feedback visual */
+.kdf-step:hover {
+  background: var(--bg3);
+  filter: brightness(1.2);
+}
+
+/* Ajuste para telas menores (celular) */
+@media (max-width: 768px) {
+  .kdf-info-panel {
+    border-left: none;
+    border-top: 1px dashed var(--border);
+    padding-left: 0;
+    padding-top: 24px;
+  }
+}
+
+
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR — TELA DE ABERTURA (vaults do servidor)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Override: screen-open usa layout em colunas em vez do centro padrão */
+#screen-open.active {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.open-sidebar {
+  width: 210px;
+  min-width: 210px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.open-sidebar-header {
+  padding: 14px 16px 10px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.server-vault-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+/* Item da lista */
+.svl-item {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 2px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+  user-select: none;
+}
+.svl-item:hover          { background: var(--bg3); border-left-color: var(--border); }
+.svl-item.selected       { background: var(--bg3); border-left-color: var(--accent); }
+.svl-item .svl-icon      { opacity: 0.35; font-size: 10px; flex-shrink: 0; }
+.svl-item .svl-name      { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mensagem de status (não logado / lista vazia) */
+.svl-status {
+  padding: 18px 16px;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+  line-height: 1.8;
+}
+
+/* Skeleton loader */
+.svl-loading        { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+.svl-loading-bar    { height: 9px; background: var(--bg3); animation: svl-pulse 1.2s ease-in-out infinite; }
+.svl-loading-bar:nth-child(2) { width: 65%; animation-delay: 0.15s; }
+.svl-loading-bar:nth-child(3) { width: 80%; animation-delay: 0.3s; }
+
+@keyframes svl-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.6;  }
+}
+
+/* Área central da tela de abertura (envolve o center-box original) */
+.open-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MENU DE CONTEXTO (botão direito na lista)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  min-width: 190px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+  display: none;
+}
+
+.ctx-menu-item {
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: background 0.1s, color 0.1s;
+}
+.ctx-menu-item:hover { background: var(--bg3); color: var(--error); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GRUPO DE BOTÕES DE SALVAR (vault aberto)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.save-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Variante secundária: botão de download quando já há o de salvar no servidor */
+.btn-save-secondary {
+  background: transparent !important;
+  border-style: dashed !important;
+  color: var(--text-dim) !important;
+  font-size: 11px;
+}
+.btn-save-secondary:hover {
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
