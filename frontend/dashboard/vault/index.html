@@ -43,6 +43,9 @@
       <input type="file" id="file-input" accept=".pvt,.bin" style="display:none">
 
       <div id="error-open" class="error-msg" style="display:none"></div>
+      <div class="or-divider">ou</div>
+      <button class="btn-secondary-link" onclick="showScreen('create')">+ Criar novo vault</button>
+
     </div>
   </div>
 
@@ -79,9 +82,19 @@
           <circle cx="20" cy="20" r="3" fill="#888"/>
         </svg>
         <span>ATLAS VAULT</span>
+        <button class="btn-save" onclick="packageAndDownload()">
+          <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3V15" />
+              <path d="M7 10L12 15L17 10" />
+              <path d="M5 21H19" />
+          </svg>
+
+          <span>Salvar Vault</span>
+        </button>
       </div>
       <div class="vault-actions">
         <span id="vault-info" class="vault-info"></span>
+        <button class="btn-primary small-btn" style="width: auto;" onclick="createNewSecret()">+ Novo Segredo</button>
         <button class="btn-danger" onclick="lockVault()">Bloquear</button>
       </div>
     </div>
@@ -94,6 +107,7 @@
         <div class="panel-header">
           <h3 id="panel-title">Detalhes do Segredo</h3>
           <div class="panel-actions">
+            <button id="btn-delete" class="btn-danger small-btn" onclick="deleteSecret()">Excluir</button>
             <button id="btn-edit" class="btn-primary small-btn" onclick="toggleEdit()">Editar</button>
             <button class="btn-danger small-btn" onclick="closePanel()">Fechar</button>
           </div>
@@ -102,7 +116,6 @@
         <div class="panel-content">
           <div class="save-area">
             <button id="btn-apply-edit" class="btn-primary" style="display:none;" onclick="applyEdits()">Aplicar Alterações</button>
-            <button id="btn-download-vault" class="btn-primary" style="background: var(--accent); border-color: var(--accent); color: white;" onclick="packageAndDownload()">↓ Baixar Vault Atualizado</button>
           </div>
           <input type="hidden" id="panel-index">
           
@@ -127,6 +140,79 @@
       </div>
     </div>
   </div>
+
+
+
+
+  <!-- TELA 4: Criar novo vault -->
+<div id="screen-create" class="screen">
+  <div class="center-box">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <polygon points="20,2 38,10 38,30 20,38 2,30 2,10" stroke="#888" stroke-width="1.5" fill="none"/>
+        <polygon points="20,8 32,14 32,26 20,32 8,26 8,14" stroke="#666" stroke-width="1" fill="none"/>
+        <circle cx="20" cy="20" r="3" fill="#888"/>
+      </svg>
+      <span>ATLAS VAULT</span>
+    </div>
+
+    <p class="subtitle">Criar novo vault</p>
+
+    <input type="text"     id="create-name"    class="pass-input" placeholder="Nome do vault (ex: pessoal)" autocomplete="off" spellcheck="false">
+    <input type="password" id="create-pass"    class="pass-input" placeholder="Senha mestra" autocomplete="off" spellcheck="false">
+    <input type="password" id="create-pass2"   class="pass-input" placeholder="Confirmar senha" autocomplete="off" spellcheck="false">
+    
+
+
+    <div id="create-strength" class="strength-bar-wrap" style="display:none">
+      <div id="create-strength-bar" class="strength-bar"></div>
+      <span id="create-strength-label" class="strength-label"></span>
+    </div>
+
+    <button id="btn-create" class="btn-primary" onclick="createVault()">Criar e Baixar .pvt</button>
+
+    <div id="error-create" class="error-msg" style="display:none"></div>
+
+    <a href="#" class="back-link" onclick="showScreen('open')">← Voltar</a>
+  </div>
+</div>
+
+
+
+
+
+
+<!-- TELA 5: Vault Bloqueado -->
+<div id="screen-locked" class="screen">
+  <div class="center-box">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <polygon points="20,2 38,10 38,30 20,38 2,30 2,10" stroke="#888" stroke-width="1.5" fill="none"/>
+        <polygon points="20,8 32,14 32,26 20,32 8,26 8,14" stroke="#666" stroke-width="1" fill="none"/>
+        <circle cx="20" cy="20" r="3" fill="#888"/>
+      </svg>
+      <span>ATLAS VAULT</span>
+    </div>
+
+    <p class="subtitle" id="locked-filename"></p>
+    <p class="locked-hint">vault bloqueado</p>
+
+    <input type="password" id="locked-pass-input" class="pass-input"
+           placeholder="Senha mestra" autocomplete="off" spellcheck="false">
+
+    <button id="btn-unlock-locked" class="btn-primary" onclick="unlockLocked()">Desbloquear</button>
+
+    <div id="error-locked" class="error-msg" style="display:none"></div>
+
+    <a href="#" class="back-link" onclick="fullReset()">← Trocar arquivo</a>
+  </div>
+</div>
+
+
+
+
+
+
 
   <script src="vault.js"></script>
 </body>
