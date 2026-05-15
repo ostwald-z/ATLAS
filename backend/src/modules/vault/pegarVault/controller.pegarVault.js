@@ -42,7 +42,7 @@ async function pegarVault(req, res, next) {
     } catch (erro) {
         // Se der erro no service ou em qualquer parte antes do envio
         console.error("Erro no controller pegarVault:", erro);
-        res.status(500).json({ erro: "Erro interno ao buscar o vault." });
+        next(erro)
     }
 }
 
