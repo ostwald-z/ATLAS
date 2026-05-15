@@ -10,6 +10,14 @@ async function controller_listar_vault(req,res,next) {
         // Executa o service e recebe a array de strings
         const vaults_nomes = await service_listar_vault.service_listar_vault(id);
 
+        res.set({
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        });
+
+        console.log(vaults_nomes)
+
         // Envia a resposta no formato JSON esperado pelo frontend
         return res.status(200).json({
             vaults: vaults_nomes
