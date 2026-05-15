@@ -17,6 +17,8 @@ window.sodiumReadyPromise = (async () => {
 })();
 
 
+let vaultListRequestId = 0;
+
 // ─── Estado em memória ───────────────────────────────────────────────────────
 let state = {
   rawFileBytes: null,   // Uint8Array do arquivo completo
@@ -892,12 +894,18 @@ async function createVault() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 
-// exemplo de rota:
-// ${window.CONFIG.API_BASE_URL}api/vault/ rota aqui
+
 
 // ─── 1. Buscar lista de vaults ao carregar a página ───────────────────────────
 async function fetchUserVaults() {
+  
+  const currentRequestId = ++vaultListRequestId;
+  
+  
   const listEl = document.getElementById('server-vault-list');
+
+
+
 
   // Skeleton loader enquanto aguarda resposta
   listEl.innerHTML = `
@@ -911,8 +919,23 @@ async function fetchUserVaults() {
     const res = await fetch(`${window.CONFIG.API_BASE_URL}api/vault/listar`, {
       method: 'GET',
       credentials: 'include',
+      cache: 'no-store',
       // headers: { 'Authorization': `Bearer ${seuToken}` }, // ← Bearer token
     });
+
+
+    // 2. AQUI ESTÁ A MUDANÇA: Se for 404, ele ESTÁ logado, mas não tem vaults
+    if (res.status === 404) {
+      state.isLoggedIn = true; // Define como logado
+      _renderVaultListEmpty(); // Chamamos uma função para mostrar a sua mensagem
+      return;
+    }
+
+
+    // SE EXISTE REQUEST MAIS NOVA → IGNORA ESTA
+    if (currentRequestId !== vaultListRequestId) {
+      return;
+    }
 
     if (res.status === 401 || res.status === 403) {
       // Não autenticado — app continua funcionando, só sem sync
@@ -924,6 +947,12 @@ async function fetchUserVaults() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data   = await res.json();
+
+    // NOVAMENTE verifica se ficou velha DURANTE await json()
+    if (currentRequestId !== vaultListRequestId) {
+      return;
+    }
+
     const vaults = data.vaults ?? []; // espera array de strings com nomes
 
     state.isLoggedIn = true;
@@ -942,6 +971,18 @@ async function fetchUserVaults() {
 function _renderVaultList(vaults) {
   const listEl = document.getElementById('server-vault-list');
   listEl.innerHTML = '';
+
+
+  // Se a lista está vazia mas chegou aqui, é porque o status foi 200 (logado)
+  if (vaults.length === 0) {
+    listEl.innerHTML = `
+      <div class="svl-status">
+        Você está logado,<br>
+        mas não tem vaults<br>
+        para listar.
+      </div>`;
+    return;
+  }
 
   if (vaults.length === 0) {
     listEl.innerHTML = `<div class="svl-status">Nenhum vault encontrado no servidor.</div>`;
@@ -1094,11 +1135,10 @@ async function deleteVaultFromServer(vaultName) {
 
   try {
     const res = await fetch(
-      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}`,
+      `${window.CONFIG.API_BASE_URL}api/vault/deletarVault/${encodeURIComponent(vaultName)}`,
       {
         method: 'DELETE',
         credentials: 'include',
-        // headers: { 'Authorization': `Bearer ${seuToken}` },
       }
     );
 
@@ -1136,3 +1176,15 @@ document.addEventListener('click', _hideContextMenu);
 // ─── Inicialização: busca vaults assim que o DOM estiver pronto ───────────────
 document.addEventListener('DOMContentLoaded', fetchUserVaults);
 
+
+
+
+function _renderVaultListEmpty() {
+  const listEl = document.getElementById('server-vault-list');
+  listEl.innerHTML = `
+    <div class="svl-status">
+      Você está logado,<br>
+      mas não tem vaults<br>
+      para listar.
+    </div>`;
+}
