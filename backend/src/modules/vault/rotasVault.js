@@ -20,6 +20,10 @@ const controller_salvar_vault = require("../vault/salvar-vault/controller-salvar
 // controller para remover vault do servidor
 const controller_remover = require("./deletar-vault/controller-deletar")
 
+
+//controller para criar vault sync
+const controller_criar_vault = require("../vault/criar-vault/controller-criar-vault")
+
 // /api/vault/
 
 
@@ -41,6 +45,9 @@ rotaVault.put("/atualizarVault/:VaultName", authMiddle, controller_salvar_vault.
 // rota para deletar o vault
 rotaVault.delete("/deletarVault/:VaultName", authMiddle, controller_remover.controller_deletar)
 
+
+// rota para criar vault sync
+rotaVault.put("/criarVault/:VaultName", authMiddle, controller_criar_vault.controller_criar_vault)
 
 
 module.exports = rotaVault
