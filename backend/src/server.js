@@ -65,8 +65,8 @@ server.use(erroMiddle)
 
 
 
-// Deixe sem o IP, assim ele aceita localhost e conexões da rede interna
-server.listen(process.env.PORT, "127.0.0.1",() => {
+// 0.0.0.0 = aceita conexão em qualquer interface de rede — o Docker consegue bater no container normalmente
+server.listen(process.env.PORT, "0.0.0.0",() => {
     console.log(`Server: ON na porta ${process.env.PORT}`);
 });
 
