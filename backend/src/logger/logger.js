@@ -1,5 +1,8 @@
 const pino = require("pino")
 
+
+const caminho_atlas_logs = process.env.CAMINHO_ATLAS_LOGS
+
 function buildLogger(file, level) {
   return pino(
     {
@@ -17,7 +20,8 @@ function buildLogger(file, level) {
         return `,"utcBR":"${date}", "horario":"${br}" `
       }
     },
-    pino.destination(`C:/atlas-logs/${file}`)
+    
+    pino.destination(`${caminho_atlas_logs}/${file}`)
   );
 }
 module.exports = {buildLogger}
