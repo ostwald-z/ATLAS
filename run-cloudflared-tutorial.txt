@@ -1,0 +1,8 @@
+cloudflared tunnel token atlas-projeto
+
+
+cloudflared tunnel run --token TOKEN_DADO
+
+
+(o config.yml já deve estar na pasta da cloudflared pós instalação e antes de rodar)
+
