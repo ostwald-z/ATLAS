@@ -19,10 +19,6 @@ services:
 
     restart: unless-stopped
 
-    environment:
-      - NODE_ENV=development
-    # outras coisas como config  de banco , o .env proprio ja cuida disso.
-
     volumes:
       - /home/ostwaldz/atlas-server/atlas-logs:/app/logs
       - /home/ostwaldz/atlas-server/atlas-vaults:/app/vaults
