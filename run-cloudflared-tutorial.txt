@@ -1,3 +1,6 @@
+**instalar cloudflared na maquina linux**
+
+
 cloudflared tunnel token atlas-projeto
 
 
