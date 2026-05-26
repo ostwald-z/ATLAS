@@ -47,7 +47,7 @@ rotaVault.delete("/deletarVault/:VaultName", authMiddle, controller_remover.cont
 
 
 // rota para criar vault sync
-rotaVault.put("/criarVault/:VaultName", authMiddle, controller_criar_vault.controller_criar_vault)
+rotaVault.put("/criarVault/:VaultName", express.raw({ type: 'application/octet-stream', limit: '10000mb' }), authMiddle, controller_criar_vault.controller_criar_vault)
 
 
 module.exports = rotaVault
