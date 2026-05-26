@@ -1,14 +1,5 @@
 
 
-
-
-
-
-
-
-
-
-
 window.sodiumReadyPromise = (async () => {
   const sodium = await import("https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/+esm");
   await sodium.default.ready;
@@ -445,7 +436,7 @@ async function unlockLocked() {
     // lembrando que, ao usuario BAIXAR arquivo atualizado = outro KDF será gerado.
     
     const nonce = base64ToBytes(state.lockedHeader.nonceXcha);
-    state.nonceBytes = lockHeader.nonceXcha;
+    state.nonceBytes = nonce;
 
 
     // pegamos KDF e nonceBytes novamente, pois POR SEGURANÇA, pós lockVault
@@ -1151,6 +1142,62 @@ async function deleteVaultFromServer(vaultName) {
     alert(`Erro ao remover vault: ${err.message}`);
   }
 }
+
+
+
+// ─── Sync Upload: envia vault local para o servidor ───────────────────────────
+async function handleSyncUpload(event) {
+  const file = event.target.files[0];
+  event.target.value = ''; // reseta input pra permitir re-upload do mesmo arquivo
+  if (!file) return;
+
+  const statusEl = document.getElementById('sync-status');
+
+  // Nome do vault = nome do arquivo sem extensão
+  const vaultName = encodeURIComponent(file.name.replace(/\.[^/.]+$/, ''));
+
+  statusEl.style.display = 'block';
+  statusEl.className = 'sync-status-loading';
+  statusEl.textContent = 'Enviando...';
+
+  try {
+    const res = await fetch(
+      `${window.CONFIG.API_BASE_URL}api/vault/criarVault/${encodeURIComponent(vaultName)}`,
+      {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
+      }
+    );
+
+    if (res.ok) {
+      statusEl.className = 'sync-status-ok';
+      statusEl.textContent = '✓ Vault adicionado ao sync com sucesso';
+      await fetchUserVaults(); // atualiza a sidebar
+      setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+    } else {
+      // Printa exatamente o que o backend respondeu
+      let msg;
+      try {
+        const data = await res.json();
+        msg = data.message || data.erro || JSON.stringify(data);
+      } catch {
+        msg = await res.text();
+      }
+      statusEl.className = 'error-msg';
+      statusEl.textContent = msg || `Erro ${res.status}`;
+    }
+
+  } catch (err) {
+    statusEl.className = 'error-msg';
+    statusEl.textContent = 'Erro de conexão com o servidor';
+    console.error('[Atlas Vault] Sync upload falhou:', err);
+  }
+}
+
+
+
 
 
 // ─── 7. Menu de contexto (botão direito na lista) ─────────────────────────────
