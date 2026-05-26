@@ -35,7 +35,7 @@
     </div>
   </div>
 
-  <!-- ÁREA CENTRAL: Abrir arquivo local ou criar novo (conteúdo original) -->
+  <!-- ÁREA CENTRAL: Abrir arquivo local ou criar novo (conteúdo original), ou enviar existente pro server. -->
   <div class="open-main">
     <div class="center-box">
       <div class="logo">
@@ -52,11 +52,24 @@
       <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
         <span id="drop-label">Clique para abrir arquivo .pvt</span>
       </div>
-      <input type="file" id="file-input" accept=".pvt,.bin" style="display:none">
+      <input type="file" id="file-input" style="display:none">
 
       <div id="error-open" class="error-msg" style="display:none"></div>
       <div class="or-divider">ou</div>
       <button class="btn-secondary-link" onclick="showScreen('create')">+ Criar novo vault</button>
+      
+      <!-- INPUT oculto para sync upload -->
+      <input type="file" id="sync-file-input" style="display:none"
+            onchange="handleSyncUpload(event)">
+
+      <!-- Botão de sync -->
+      <button class="btn-secondary-link"
+              onclick="document.getElementById('sync-file-input').click()">
+        ↑ Adicionar vault existente ao Sync
+      </button>
+
+      <!-- Feedback de status (sucesso ou erro) -->
+      <div id="sync-status" style="display:none"></div>
     </div>
   </div>
 
