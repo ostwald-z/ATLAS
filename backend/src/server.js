@@ -33,7 +33,7 @@ server.use(cors({
 // mantendo padrao de envio que é "octed-stream"
 server.use(
   '/api/vault/atualizarVault/:VaultName',
-  express.raw({ type: 'application/octet-stream', limit: '700mb' }) // ajusta o limite conforme necessário
+  express.raw({ type: 'application/octet-stream', limit: '1000mb' }) // ajusta o limite conforme necessário
 );
 
 
