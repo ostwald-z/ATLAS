@@ -58,7 +58,32 @@ async function upload_arquivo_service(arquivo, dono_id, caminho_escolhido = "") 
      * - carregar o arquivo na RAM
      * - travar o servidor com arquivos grandes
      */
-    await fs.rename(arquivo.path, caminhoCompleto);
+    
+
+    // temos que mudar, usaremos copyFile agora, visando rodar em DOCKER
+    //await fs.rename(arquivo.path, caminhoCompleto);
+
+    try{
+        await fs.copyFile(arquivo.path, caminhoCompleto)
+
+        // deleta origem pós bem sucedido
+
+        await fs.unlink(arquivo.path)
+    }catch(erro){
+        console.log("Erro no upload interno: ", erro)
+
+        // tentativa de limpeza do tmp, onde o arquivo ficou salvo primeiramente no Mullter.
+        try {
+            await fs.unlink(arquivo.path);
+            console.log("Arquivo temporário limpo após falha.");
+        } catch (erroLimpeza) {
+            // Se nem conseguir apagar, só loga. 
+            // O Docker costuma limpar /tmp ao reiniciar, então não é crítico.
+            console.warn("Falha ao limpar arquivo temporário:", erroLimpeza.message);
+        }
+        throw new AppError("Erro interno no upload", 500)
+    }
+
 
     // 🔹 Caminho relativo (pra salvar no banco)
     const caminhoRelativo = path
