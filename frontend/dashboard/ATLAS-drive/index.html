@@ -1,393 +1,75 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <title>ATLAS Drive</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas Drive</title>
+  
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-</head>
-
-<body>
-    <!-- ==========================
-      PROGRESS BAR GLOBAL
-  ========================== -->
-  <div id="progressWrapper" class="progress-wrapper">
-    <div class="progress-bar" id="progressBar"></div>
-  </div>
-
-  <!-- ==========================
-       SIDEBAR
-       ========================== -->
-  <div class="sidebar">
-    <div class="logo">ATLAS</div>
-
-    <!-- VAULT MODE BADGE (aparece só no modo vault) -->
-    <div class="vault-mode-badge" id="vaultModeBadge">
-      <div class="vault-mode-badge-dot"></div>
-      VAULT ATIVO
-    </div>
-
-    <!-- BOTÃO SAIR DO VAULT (aparece só no modo vault) -->
-    <button class="vault-exit-btn" id="vaultExitBtn">
-      ⊗ &nbsp;Sair do vault
-    </button>
-
-    <div class="sidebar-section">Principal</div>
-    <div class="nav-item active" onclick="fetchFiles('/')">
-      <span class="nav-icon">⊞</span> Início
-    </div>
-    <div class="nav-item">
-      <span class="nav-icon">◷</span> Recentes
-    </div>
-    <div class="nav-item">
-      <span class="nav-icon">☆</span> Favoritos
-    </div>
-
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-section">Atividade</div>
-    <div class="nav-item" id="navOperacoes" onclick="abrirDrawerOperacoes()">
-      <span class="nav-icon">↕</span>
-      <span>Operações</span>
-      <span id="operacoesBadge" class="operacoes-badge" style="display:none;"></span>
-    </div>
-
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-section">Sistema</div>
-    <div class="nav-item">
-      <span class="nav-icon">⊘</span> Lixeira
-    </div>
-  </div>
-
-  <!-- BACKDROP MOBILE (fora da sidebar) -->
-  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-
-  <!-- ==========================
-       MAIN AREA
-       ========================== -->
-  <div class="main">
-
-    <!-- TOPBAR -->
-    <div class="topbar">
-      
-      <!-- BOTÃO MENU MOBILE -->
-      <button id="mobileMenuBtn" title="Menu">☰</button>
-
-      <!-- INDICADOR VAULT NA TOPBAR -->
-      <div class="vault-topbar-indicator" id="vaultTopbarIndicator">
-        <span style="width:5px;height:5px;border-radius:50%;background:#0af;box-shadow:0 0 6px #0af;animation:vaultPulse 2s infinite;display:inline-block;"></span>
-        Vault ativo
-      </div>
-
-      <button id="backButton" title="Voltar">← Voltar</button>
-      <div class="path" id="currentPath"></div>
-      <div class="actions">
-        <button id="darkModeToggle" title="Alternar tema">🌙</button>
-        <button onclick="uploadFile()">↑ Upload</button>
-      </div>
-    </div>
-
-    <div class="list-header">
-      <div class="list-header-cell"></div>
-      <div class="list-header-cell">Nome</div>
-      <div class="list-header-cell">Tipo</div>
-      <div class="list-header-cell">Tamanho</div>
-      <div class="list-header-cell">Ext.</div>
-    </div>
-
-    <!-- FILES GRID -->
-    <div class="file-container" id="fileContainer">
-
-      <!-- ==========================
-           TEMPLATE DE ARQUIVO
-           DUPLICAR VIA JS
-      ========================== -->
-
-      <!-- EXEMPLO ESTÁTICO -->
-      <!--<div class="file-card" onclick="openItem('pasta1')">
-        <div class="file-icon">📁</div>
-        <div class="file-name">Pasta 1</div>
-        <div class="file-meta">Pasta</div>
-      </div>
-
-      <div class="file-card" onclick="openItem('arquivo.txt')">
-        <div class="file-icon">📄</div>
-        <div class="file-name">arquivo.txt</div>
-        <div class="file-meta">2 KB</div>
-      </div> -->
-
-    </div>
-  </div>
-
-
-
-  <div id="contextMenu" class="context-menu">
-    <div class="context-menu-item" id="visualizarItem">Visualizar Item</div>
-    <div class="context-menu-item" id="editarTxtItem" style="display:none">Editar conteúdo TXT</div>
-    <div class="context-menu-item" id="downloadOption">Baixar arquivo</div>
-    <div class="context-menu-item" id="MudarNomeOption">Renomear Item</div>
-    <div class="context-menu-item" id="deletarArquivo">Deletear Item</div>
-
-      <!-- 🔥 NOVOS ITENS (área vazia) -->
-    <div class="context-menu-item" id="criarArquivo">Criar documento de texto</div>
-    <div class="context-menu-item" id="criarPasta">Criar nova pasta</div>
-  </div>
-
-
-
-  <!-- ==========================
-      MODAL RENOMEAR ARQUIVO
-  ========================== -->
-  <div id="renameModal" class="rename-modal">
-    <div class="rename-box">
-      <h3>Renomear Item</h3>
-      <input type="text" id="renameInput" placeholder="Novo nome..." />
-      
-      <div class="rename-actions">
-        <button id="cancelRename">Cancelar</button>
-        <button id="confirmRename">Salvar</button>
-      </div>
-    </div>
-  </div>
-
-
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   
-  <div id="previewModal">
-    <div id="previewModalInner">
-      <div id="previewModalHeader">
-        <div id="previewHeaderLeft">
-          <span id="previewHeaderIcon"></span>
-          <span id="previewHeader">Nome do arquivo</span>
-        </div>
-        <div id="previewHeaderActions">
-          <button id="previewDownloadBtn">↓ Baixar</button>
-          <button id="previewCloseBtn">✕</button>
-        </div>
-      </div>
-      <div id="previewContent"></div>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-left">
+      <span class="brand-logo">atlas <span class="sub-logo">drive</span></span>
     </div>
-  </div>
-
-
-  <div id="selectionBox"></div>
-
-
-
-  <div id="selectionInfo"></div>
-
-
-  <!-- PAINEL DE TRANSFERÊNCIAS — mini indicador -->
-  <div id="transferPanel" class="transfer-panel-mini">
-    <div class="transfer-panel-mini-header" id="transferPanelHeader">
-      <div class="transfer-panel-mini-left">
-        <div class="transfer-panel-mini-dot" id="transferDot"></div>
-        <span id="transferPanelLabel">Transferindo...</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span id="transferToggleIcon" class="transfer-panel-mini-toggle">▾</span>
-        <button class="transfer-panel-mini-open" onclick="abrirDrawerOperacoes()">Ver tudo</button>
-      </div>
+    <div class="header-right">
+      <button id="darkModeToggle" class="theme-btn" title="Alternar tema">🌙</button>
     </div>
-    <div id="transferList" class="transfer-panel-mini-list"></div>
-  </div>
+  </header>
 
+  <main class="app-container">
+    <nav class="breadcrumb-container" id="breadcrumbs">
+      </nav>
 
-
-
-  <!-- ══ VAULT: TELA 1 — VERIFICAÇÃO DE ACESSO ══ -->
-  <div id="vaultAccessOverlay" class="vault-overlay">
-    <div class="vault-card" id="vaultAccessCard">
-      <div class="vault-card-icon">🔒</div>
-      <div class="vault-eyebrow">Atlas Vault</div>
-      <div class="vault-title">Área protegida</div>
-      <div class="vault-subtitle">Este conteúdo é privado. Insira seu código de acesso para continuar.</div>
-
-      <div class="vault-status">
-        <div class="vault-status-dot"></div>
-        VERIFICANDO CREDENCIAIS
+    <div class="actions-bar">
+      <button id="newFolderBtn" class="action-btn">+ Nova pasta</button>
+      <button id="newTxtBtn" class="action-btn">📄 Criar TXT</button>
       </div>
 
-      <label class="vault-input-label">Código de acesso</label>
-      <div class="vault-input-wrap">
-        <input
-          type="password"
-          class="vault-input"
-          id="vaultAccessInput"
-          placeholder="••••••••"
-          autocomplete="off"
-          spellcheck="false"
-        />
+
+    <section class="drive-section">
+      <div class="drive-header-row">
+        <span class="col-main">Nome</span>
+        <span class="col-meta">Tamanho</span>
       </div>
 
-      <button class="vault-btn" id="vaultAccessBtn">
-        <span>Continuar</span>
-      </button>
-
-      <div class="vault-error" id="vaultAccessError">
-        Código incorreto, tente novamente.
+      <div id="fileListContainer" class="file-list-container">
+        <div class="loading-state">Carregando seus arquivos...</div>
       </div>
+    </section>
+  </main>
+
+
+  <dialog id="folderModal" class="minimal-modal">
+    <form method="dialog">
+      <p class="modal-title">Nova pasta</p>
+      <input type="text" id="folderNameInput" placeholder="Nome da pasta" autocomplete="off" required />
+      <div class="modal-actions">
+        <button type="button" id="cancelModalBtn" class="action-btn text-only">Cancelar</button>
+        <button type="submit" class="action-btn primary">Criar</button>
+      </div>
+    </form>
+  </dialog>
+
+
+  <dialog id="editorModal" class="minimal-modal editor-modal">
+    <div class="editor-header">
+      <span id="editorFilename" class="modal-title">arquivo.txt</span>
     </div>
-  </div>
-
-
-  <!-- ══ VAULT: TELA 2 — AUTENTICAÇÃO VAULT ══ -->
-  <div id="vaultAuthOverlay" class="vault-overlay">
-    <div class="vault-card" id="vaultAuthCard">
-      <div class="vault-card-icon">🗝️</div>
-      <div class="vault-eyebrow">Atlas Vault</div>
-      <div class="vault-title">Quase lá</div>
-      <div class="vault-subtitle">Identidade confirmada. Insira sua chave para abrir o vault.</div>
-
-      <div class="vault-status">
-        <div class="vault-status-dot"></div>
-        Identidade verificada
-      </div>
-
-      <label class="vault-input-label">Chave do vault</label>
-      <div class="vault-input-wrap">
-        <input
-          type="password"
-          class="vault-input"
-          id="vaultAuthInput"
-          placeholder="••••••••"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </div>
-
-      <button class="vault-btn" id="vaultAuthBtn">
-        <span>Abrir vault</span>
-      </button>
-
-      <div class="vault-error" id="vaultAuthError">
-        Chave incorreta. Tente novamente.
-      </div>
+    <textarea id="editorTextarea" placeholder="Comece a digitar seu texto aqui..."></textarea>
+    <div class="modal-actions">
+      <button type="button" id="cancelEditorBtn" class="action-btn text-only">Cancelar</button>
+      <button type="button" id="saveEditorBtn" class="action-btn primary">Salvar Arquivo</button>
     </div>
-  </div>
-
-
-  <!-- VAULT TRANSFER PANEL -->
-  <div id="vaultTransferPanel">
-    <div class="vault-transfer-header" id="vaultTransferHeader">
-      <div class="vault-transfer-title">Transferências (vault)</div>
-      <div class="vault-transfer-controls">
-        <span id="vaultTransferToggle">▾</span>
-        <span id="vaultTransferClose">✕</span>
-      </div>
-    </div>
-    <div id="vaultTransferList"></div>
-  </div>
-
-
-
-
-  <!-- MODAL EDITOR TXT -->
-  <!-- MODAL EDITOR TXT -->
-  <div id="txtEditorModal" class="txt-editor-modal">
-    <div class="txt-editor-inner">
-
-      <!-- HEADER -->
-      <div class="txt-editor-header">
-        <div class="txt-editor-header-left">
-          <span class="txt-editor-icon">📝</span>
-          <span id="txtEditorTitle" class="txt-editor-title">arquivo.txt</span>
-          <span id="txtEditorStatus" class="txt-editor-status">SEM ALTERAÇÕES</span>
-        </div>
-        <div class="txt-editor-header-right">
-          <button id="txtEditorSaveBtn" class="txt-editor-save-btn">💾 Salvar</button>
-          <button id="txtEditorCloseBtn" class="txt-editor-close-btn">✕</button>
-        </div>
-      </div>
-
-      <!-- EDITOR -->
-      <textarea id="txtEditorArea" class="txt-editor-area" spellcheck="false"></textarea>
-
-      <!-- FOOTER -->
-      <div class="txt-editor-footer">
-        <span id="txtEditorLineCount" class="txt-editor-linecount">0 linhas · 0 caracteres</span>
-        <span class="txt-editor-brand">ATLAS DRIVE · TEXT EDITOR</span>
-      </div>
-
-    </div>
-</div>
-
-
-
-
-  <!-- FAB MOBILE: upload rápido -->
-  <button id="mobileFab" title="Ações rápidas">+</button>
-
-  <!-- PICKER MOBILE: escolher pasta de destino -->
-  <div id="moveFolderPicker" class="move-folder-picker">
-    <div class="move-folder-sheet">
-      <div class="move-folder-header">
-        <div class="move-folder-title-wrap">
-          <div class="move-folder-title">Mover para pasta</div>
-          <div id="moveFolderCurrentPath" class="move-folder-current-path">/</div>
-        </div>
-        <button id="moveFolderCloseBtn" class="move-folder-close-btn" type="button">✕</button>
-      </div>
-      <div class="move-folder-toolbar">
-        <button id="moveFolderUpBtn" class="move-folder-tool-btn" type="button">Subir pasta</button>
-        <button id="moveFolderRootBtn" class="move-folder-tool-btn" type="button">Ir para raiz</button>
-      </div>
-      <div id="moveFolderList" class="move-folder-list"></div>
-      <div class="move-folder-footer">
-        <button id="moveFolderCancelBtn" class="move-folder-footer-btn" type="button">Cancelar</button>
-        <button id="moveFolderConfirmBtn" class="move-folder-footer-btn primary" type="button">Mover para cá</button>
-      </div>
-    </div>
-  </div>
-
-
-
-  <!-- ══ DRAWER DE OPERAÇÕES ══ -->
-  <div id="operacoesBackdrop" class="op-backdrop"></div>
-
-  <div id="operacoesDrawer" class="op-drawer">
-
-    <div class="op-drawer-header">
-      <div class="op-drawer-title-wrap">
-        <span class="op-drawer-title">Operações</span>
-        <span id="operacoesBadgeDrawer" class="operacoes-badge" style="display:none;"></span>
-      </div>
-      <button class="op-drawer-close" id="opDrawerClose">✕</button>
-    </div>
-
-    <!-- ATIVAS -->
-    <div id="opSectionAtivas">
-      <div class="op-section-label">Em andamento</div>
-      <div id="opListAtivas" class="op-list"></div>
-    </div>
-
-    <!-- HISTÓRICO -->
-    <div id="opSectionHistorico">
-      <div class="op-section-label" style="margin-top:8px;">Concluídas recentemente</div>
-      <div id="opListHistorico" class="op-list"></div>
-    </div>
-
-    <!-- VAZIO -->
-    <div id="opEmpty" class="op-empty">
-      <div class="op-empty-icon">↕</div>
-      <div>Nenhuma operação ainda</div>
-      <div class="op-empty-sub">Uploads e downloads aparecerão aqui</div>
-    </div>
-
-  </div>
-
+  </dialog>
 
 
   <script src="../../config.js"></script>
   <script src="script.js"></script>
-
-
-
-
 </body>
 </html>
