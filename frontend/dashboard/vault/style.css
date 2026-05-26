@@ -223,6 +223,27 @@ html, body {
 }
 .back-link:hover { color: var(--text); }
 
+
+
+/* Feedback de sync upload */
+.sync-status-ok {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+
+.sync-status-loading {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+
+
+
+
 /* --- VAULT ABERTO --- */
 #screen-vault { display: none; flex-direction: column; height: 100vh; }
 #screen-vault.active {
