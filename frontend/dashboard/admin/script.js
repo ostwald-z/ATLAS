@@ -223,7 +223,6 @@ document.addEventListener('keydown', (e) => {
   try {
     const res = await apiFetch(`${window.CONFIG.API_BASE_URL}api/user/apicheck`, {
       method: 'GET',
-      credentials: 'include'
     });
     if (!res.ok) {
       window.location.href = '../../painelDeLogin/login/index.html';
