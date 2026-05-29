@@ -31,12 +31,12 @@ async function controller_download_arq(req, res, next) {
         // 🔹 (OPCIONAL mas recomendado)
         res.setHeader("Accept-Ranges", "bytes");
 
-        // 🔹 STREAM DO ARQUIVO (isso aqui já está perfeito)
+        // 🔹 STREAM DO ARQUIVO 
         const stream = fs.createReadStream(arquivo.path);
 
         stream.pipe(res);
 
-        // 🔹 tratamento de erro do stream (boa prática)
+        // 🔹 tratamento de erro do stream 
         stream.on("error", (err) => {
             console.error("Erro no stream:", err);
             if (!res.headersSent) {
