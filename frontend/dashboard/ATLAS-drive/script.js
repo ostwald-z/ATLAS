@@ -102,6 +102,11 @@ function formatBytes(bytes) {
 // ════════════════════════════════════════════════════════
 
 async function listFolderContents(path = '/') {
+
+  if (isMoveMode && !isMoveNavigating) {
+    deactivateMoveMode();
+  }
+
   currentPath = path;
   const container = document.getElementById('fileListContainer');
   container.innerHTML = `<div class="loading-state">Buscando diretórios...</div>`;
@@ -143,12 +148,12 @@ function renderRows(files) {
   }
 
   files.forEach(file => {
-    const nomeExibido = file.nome_original || file.nome;
+    const nomeExibido = file.nome_original || file.nome; // fallback pro nome físico se vier null
     const sizeStr = file.tipo === 'pasta' ? '—' : formatBytes(file.tamanho);
     const icon = getFileIcon(nomeExibido, file.tipo);
 
     const row = document.createElement('div');
-    row.className = 'file-row';
+    row.className = `file-row ${file.tipo === 'pasta' ? 'is-folder' : 'is-file'}`;
     row.innerHTML = `
       <div class="col-main">
         <span class="file-icon">${icon}</span>
@@ -157,18 +162,48 @@ function renderRows(files) {
       <div class="col-meta">${sizeStr}</div>
     `;
 
-    // Duplo clique entra se for pasta
+    // Duplo clique entra se for pasta (bloqueado no modo download)
     row.ondblclick = () => {
+      if (isDownloadMode || isDeleteMode || isRenameMode || (isMoveMode && !isMoveNavigating)) return;
       if (file.tipo === 'pasta') {
-        const targetPath = currentPath === '/' ? `/${file.nome}` : `${currentPath}/${file.nome}`;
+        const targetPath = currentPath === '/' ? `/${file.nome_original}` : `${currentPath}/${file.nome_original}`;
         listFolderContents(targetPath);
       }
     };
 
-    // Suporte para cliques simples em dispositivos Mobile entrarem na pasta direto
-    row.onclick = () => {
+
+    // Controle do clique único (Mobile e modo Download global)
+    row.onclick = (e) => {
+      if (isDownloadMode) {
+        e.stopPropagation(); // impede fechar o toggle pelo clique global
+        if (file.tipo !== 'pasta') {
+          executeFileDownload(file);
+        }
+        return;
+      }
+
+      if (isDeleteMode) {
+        e.stopPropagation();
+        executeFileDelete(file);
+        return;
+      }
+
+      if (isRenameMode) {
+        e.stopPropagation();
+        openRenameModal(file);
+        return;
+      }
+
+
+      //Intercepta o clique para selecionar os arquivos/pastas que serão movidos
+      if (isMoveMode && !isMoveNavigating) {
+        e.stopPropagation();
+        toggleMoveSelection(file, row);
+        return;
+      }
+
       if (window.innerWidth <= 768 && file.tipo === 'pasta') {
-        const targetPath = currentPath === '/' ? `/${file.nome}` : `${currentPath}/${file.nome}`;
+        const targetPath = currentPath === '/' ? `/${file.nome_original}` : `${currentPath}/${file.nome_original}`;
         listFolderContents(targetPath);
       }
     };
@@ -276,6 +311,10 @@ namePromptForm.addEventListener('submit', async (e) => {
     currentTxtName = chosenName.endsWith('.txt') ? chosenName : `${chosenName}.txt`;
     openEditor();
   }
+  
+  else if (promptMode === 'rename') {
+    await executeRename(chosenName);
+  }
 });
 
 
@@ -316,7 +355,6 @@ saveEditorBtn.addEventListener('click', async () => {
   formData.append('caminho_escolhido', currentPath); // Onde salvar
 
   try {
-    // ⚠️ NOTA CRÍTICA: Ao usar FormData, NUNCA defina o header 'Content-Type'. 
     // O navegador precisa gerar o boundary (limites multipart) automaticamente.
     const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/upload`, {
       method: 'POST',
@@ -336,6 +374,625 @@ saveEditorBtn.addEventListener('click', async () => {
     saveEditorBtn.disabled = false;
   }
 });
+
+
+
+
+
+// ══════════════════════════════════════════════
+// LÓGICA DE DOWNLOAD (TOGGLE + STREAM NATIVO)
+// ══════════════════════════════════════════════
+
+let isDownloadMode = false;
+
+function activateDownloadMode() {
+  isDownloadMode = true;
+  const btn = document.getElementById('newDownloadBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.add('active');
+  btn.textContent = 'Selecione um arquivo...';
+  container.classList.add('download-mode-active');
+}
+
+function deactivateDownloadMode() {
+  isDownloadMode = false;
+  const btn = document.getElementById('newDownloadBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.remove('active');
+  btn.textContent = 'Download';
+  container.classList.remove('download-mode-active');
+}
+
+// Evento do botão de Download principal
+document.getElementById('newDownloadBtn').addEventListener('click', (e) => {
+  e.stopPropagation(); // Evita fechar imediatamente pelo clique global
+  if (isDownloadMode) {
+    deactivateDownloadMode();
+  } else {
+    activateDownloadMode();
+  }
+});
+
+// Desativa o toggle se clicar em qualquer lugar fora da lista ou do botão
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('newDownloadBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if (isDownloadMode && !btn.contains(e.target) && !container.contains(e.target)) {
+    deactivateDownloadMode();
+  }
+});
+
+// Executa a requisição e aciona o download nativo do browser
+async function executeFileDownload(file) {
+  
+
+  const nome_arquivo = file.nome_original || file.nome;
+
+  const caminho_arquivo = currentPath === '/' 
+    ? `/${file.nome_original || file.nome}` 
+    : `${currentPath}/${file.nome_original || file.nome}`;
+  
+  // Desativa interface de escolha imediatamente pós-clique
+  deactivateDownloadMode();
+
+  try {
+    const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/download`, {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_arquivo })
+    });
+
+    if (!response.ok) throw new Error('Falha ao baixar arquivo do servidor');
+
+    // Consome o octet-stream transformando em Blob na memória do navegador
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    // Downloader nativo invisível e ultra-rápido
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = nome_arquivo;
+    document.body.appendChild(anchor);
+    anchor.click();
+    
+    // Limpeza de rastro de memória
+    anchor.remove();
+    window.URL.revokeObjectURL(blobUrl);
+
+  } catch (error) {
+    console.error('Erro na execução do download:', error);
+  }
+}
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// Lógica de Deletar (pastas e arquivos)
+// ══════════════════════════════════════════════
+
+let isDeleteMode = false;
+
+function activateDeleteMode() {
+  if (isDownloadMode) deactivateDownloadMode(); // Desativa o download se estiver aberto
+  isDeleteMode = true;
+  const btn = document.getElementById('DeleteBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.add('active');
+  btn.textContent = 'Selecione para deletar...';
+  container.classList.add('delete-mode-active');
+}
+
+function deactivateDeleteMode() {
+  isDeleteMode = false;
+  const btn = document.getElementById('DeleteBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.remove('active');
+  btn.textContent = 'Deletar';
+  container.classList.remove('delete-mode-active');
+}
+
+// Evento do botão de Deletar principal
+document.getElementById('DeleteBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isDeleteMode) {
+    deactivateDeleteMode();
+  } else {
+    activateDeleteMode();
+  }
+});
+
+// Desativa o toggle se clicar fora da lista ou do botão
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('DeleteBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if (isDeleteMode && !btn.contains(e.target) && !container.contains(e.target)) {
+    deactivateDeleteMode();
+  }
+});
+
+// Executa a requisição de exclusão um por um
+async function executeFileDelete(file) {
+  const nome_alvo = file.nome_original || file.nome;
+  const pasta_ou_arquivo = file.tipo === 'pasta' ? 'pasta' : 'arquivo';
+  
+  const caminho_arquivo = currentPath === '/' 
+    ? `/${nome_alvo}` 
+    : `${currentPath}/${nome_alvo}`;
+
+  // Confirmação nativa simples antes de apagar
+  if (!confirm(`Tem certeza que deseja deletar o(a) ${pasta_ou_arquivo} "${nome_alvo}"?`)) {
+    deactivateDeleteMode();
+    return;
+  }
+
+  deactivateDeleteMode();
+
+  try {
+    const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/delete`, {
+      method: "DELETE",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_arquivo, pasta_ou_arquivo })
+    });
+
+    if (response.ok) {
+      listFolderContents(currentPath); // Atualiza o diretório atual
+    } else {
+      console.error('Falha ao deletar do servidor');
+    }
+  } catch (error) {
+    console.error('Erro na execução do delete:', error);
+  }
+}
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// LÓGICA de UPLOAD (stream pipe | multipart)
+// > 8mb = multipart
+// < 8mb = stream pipe
+// ══════════════════════════════════════════════
+
+
+const uploadBtn = document.getElementById('UploadBtn');
+const hiddenFileInput = document.getElementById('hiddenFileInput');
+const progressContainer = document.getElementById('uploadProgressContainer');
+const progressBar = document.getElementById('uploadProgressBar');
+const progressText = document.getElementById('uploadStatusText');
+const progressPercent = document.getElementById('uploadPercentage');
+
+const UPLOAD_LIMIT = 8 * 1024 * 1024; // 8 MB
+const CHUNK_SIZE = 5 * 1024 * 1024;   // 5 MB por chunk (Ajuste conforme o backend)
+
+// 1. Aciona o explorador de arquivos nativo
+uploadBtn.addEventListener('click', () => {
+  hiddenFileInput.click();
+});
+
+// 2. Intercepta a escolha dos arquivos e gerencia a fila
+hiddenFileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  progressContainer.style.display = 'block';
+
+  // Processa um arquivo por vez de forma síncrona para não engargalar o cliente/servidor
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    progressText.textContent = `Enviando (${i + 1}/${files.length}): ${file.name}`;
+    progressBar.style.width = '0%';
+    progressPercent.textContent = '0%';
+
+    try {
+      if (file.size < UPLOAD_LIMIT) {
+        await uploadSmallFile(file);
+      } else {
+        await uploadLargeFile(file);
+      }
+    } catch (err) {
+      console.error(`Erro no upload de ${file.name}:`, err);
+      // Você pode optar por parar o loop ou apenas avisar e continuar
+    }
+  }
+
+  // Finalização visual suave
+  progressText.textContent = 'Uploads concluídos!';
+  progressPercent.textContent = '100%';
+  progressBar.style.width = '100%';
+  
+  setTimeout(() => {
+    progressContainer.style.display = 'none';
+    hiddenFileInput.value = ''; // Limpa a seleção do input
+    listFolderContents(currentPath); // Atualiza a lista da pasta atual no DOM
+  }, 2000);
+});
+
+
+// 3. Método Stream Pipe (< 8mb) com XHR nativo para barra de progresso fluida
+function uploadSmallFile(file) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('files', file);
+    formData.append('caminho_escolhido', currentPath);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}api/atlas-drive/upload`, true);
+    xhr.withCredentials = true; // Essencial para enviar cookies de autenticação
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error('Falha no upload stream'));
+    };
+
+    xhr.onerror = () => reject(new Error('Erro de rede XHR (Upload Simples)'));
+    xhr.send(formData);
+  });
+}
+
+
+// 4. Método Multipart (>= 8mb)
+async function uploadLargeFile(file) {
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  let uploadedBytes = 0;
+
+  // 4.1 Inicia o multipart
+  const initRes = await apiFetch(`${API_BASE_URL}api/atlas-drive/upload-mult/initiate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      nome_arquivo: file.name, 
+      caminho_escolhido: currentPath,
+      tamanho_total: file.size
+    })
+  });
+  
+  if (!initRes.ok) throw new Error('Falha ao iniciar Multipart');
+  const { uploadId } = await initRes.json();
+
+  // 4.2 Envia os chunks sequencialmente usando XHR
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunk = file.slice(start, end);
+    
+    await uploadChunk(chunk, uploadId, i + 1, file.size, uploadedBytes);
+    uploadedBytes += chunk.size;
+  }
+
+  // 4.3 Finaliza a montagem no servidor
+  const completeRes = await apiFetch(`${API_BASE_URL}api/atlas-drive/upload-mult/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      uploadId, 
+      nome_arquivo: file.name,
+      caminho_escolhido: currentPath
+    })
+  });
+
+  if (!completeRes.ok) throw new Error('Falha ao concluir Multipart');
+}
+
+// Sub-rotina para enviar partes individuais e calcular progresso global
+function uploadChunk(chunk, uploadId, partNumber, totalFileSize, uploadedBytesBefore) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('uploadId', uploadId);
+    formData.append('partNumber', partNumber);
+    formData.append('chunk', chunk);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}api/atlas-drive/upload-mult/part`, true);
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        // Progresso real: Soma o que já subiu em chunks anteriores + o progresso deste chunk
+        const currentTotalLoaded = uploadedBytesBefore + event.loaded;
+        const percent = Math.round((currentTotalLoaded / totalFileSize) * 100);
+        progressBar.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300){
+        resolve();
+      }else {
+        console.error(`Chunk ${partNumber} falhou — HTTP ${xhr.status}:`, xhr.responseText);
+        reject(new Error(`Falha ao enviar chunk ${partNumber}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error(`Erro de rede XHR (Chunk ${partNumber})`));
+    xhr.send(formData);
+  });
+}
+
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// Lógica de MOVER (pastas e arquivos)
+// ══════════════════════════════════════════════
+
+let isMoveMode = false;
+let isMoveNavigating = false;
+let selectedMoveItems = []; // Guarda a lista de objetos dos itens selecionados
+
+function activateMoveMode() {
+  if (isDownloadMode) deactivateDownloadMode();
+  if (isDeleteMode) deactivateDeleteMode();
+
+  isMoveMode = true;
+  isMoveNavigating = false;
+  selectedMoveItems = [];
+
+  const btn = document.getElementById('MoveBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.add('active');
+  btn.textContent = 'Selecione os itens...';
+  container.classList.add('move-mode-active');
+}
+
+function deactivateMoveMode() {
+  isMoveMode = false;
+  isMoveNavigating = false;
+  selectedMoveItems = [];
+
+  const btn = document.getElementById('MoveBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.remove('active');
+  btn.textContent = 'Mover';
+  btn.disabled = false;
+  container.classList.remove('move-mode-active');
+
+  // Remove marcações visuais remanescentes
+  document.querySelectorAll('.is-selected-for-move').forEach(row => {
+    row.classList.remove('is-selected-for-move');
+  });
+}
+
+// Gerencia a seleção/deseleção de itens clicados
+function toggleMoveSelection(file, rowElement) {
+  // Monta o caminho completo de origem do item clicado
+  const itemPath = currentPath === '/' 
+    ? `/${file.nome_original || file.nome}` 
+    : `${currentPath}/${file.nome_original || file.nome}`;
+
+  const index = selectedMoveItems.findIndex(item => item.caminho_origem === itemPath);
+
+  if (index > -1) {
+    selectedMoveItems.splice(index, 1);
+    rowElement.classList.remove('is-selected-for-move');
+  } else {
+    selectedMoveItems.push({
+      nome: file.nome_original || file.nome,
+      tipo: file.tipo === 'pasta' ? 'pasta' : 'arquivo',
+      caminho_origem: itemPath
+    });
+    rowElement.classList.add('is-selected-for-move');
+  }
+
+  // Atualiza o texto do botão com base na seleção
+  const btn = document.getElementById('MoveBtn');
+  if (selectedMoveItems.length > 0) {
+    btn.textContent = `OK (${selectedMoveItems.length})`;
+  } else {
+    btn.textContent = 'Selecione os itens...';
+  }
+}
+
+// Listener do botão principal de Mover gerenciando a máquina de estados (Toggle -> OK -> Mover Aqui)
+document.getElementById('MoveBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+
+  // 1. Primeiro clique ativa o modo seleção
+  if (!isMoveMode) {
+    activateMoveMode();
+    return;
+  }
+
+  // 2. Segundo clique (quando o texto vira OK) valida a seleção e libera navegação
+  if (isMoveMode && !isMoveNavigating) {
+    if (selectedMoveItems.length === 0) {
+      deactivateMoveMode();
+      return;
+    }
+    isMoveNavigating = true;
+    const btn = document.getElementById('MoveBtn');
+    btn.textContent = 'Mover aqui';
+    return;
+  }
+
+  // 3. Terceiro clique dispara o envio em lote para o destino atual do app
+  if (isMoveMode && isMoveNavigating) {
+    executeBulkMove();
+  }
+});
+
+// Desativa o toggle caso o usuário clique completamente fora da lista ou do botão durante a seleção
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('MoveBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if (isMoveMode && !isMoveNavigating && !btn.contains(e.target) && !container.contains(e.target)) {
+    deactivateMoveMode();
+  }
+});
+
+// Executa as requisições sequencialmente respeitando o formato exato esperado pelo backend
+async function executeBulkMove() {
+  const btn = document.getElementById('MoveBtn');
+  btn.textContent = 'Movendo...';
+  btn.disabled = true;
+
+  try {
+    for (const item of selectedMoveItems) {
+
+      //Monta o caminho completo do destino (pasta atual no momento do clique + nome do item)
+      const novo_caminho_destino = currentPath === '/' 
+        ? `/${item.nome}` 
+        : `${currentPath}/${item.nome}`;
+
+      const bodyPayload = {
+        novo_nome_arquivo: novo_caminho_destino, // Caminho destino + nome
+        caminho_arquivo: item.caminho_origem, // Caminho completo de onde ele saiu
+        pasta_ou_arquivo: item.tipo,         // "pasta" ou "arquivo"
+        mover: 'sim'                          // "sim" fixo para reaproveitar a rota
+      };
+
+      await apiFetch(`${API_BASE_URL}api/atlas-drive/renomear`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload)
+      });
+    }
+  } catch (error) {
+    console.error('Erro na requisição em lote para mover:', error);
+  } finally {
+    // Reseta o estado global e atualiza visualmente a pasta destino atual
+    deactivateMoveMode();
+    listFolderContents(currentPath);
+  }
+}
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// Lógica de RENOMEAR ARQUIVOS E PASTAS 
+// ══════════════════════════════════════════════
+
+let isRenameMode = false;
+let itemToRename = null;
+
+function activateRenameMode() {
+  if (isDownloadMode) deactivateDownloadMode();
+  if (isDeleteMode) deactivateDeleteMode();
+  if (isMoveMode) deactivateMoveMode();
+
+  isRenameMode = true;
+  const btn = document.getElementById('RenameBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.add('active');
+  btn.textContent = 'Selecione para renomear...';
+  container.classList.add('rename-mode-active');
+}
+
+function deactivateRenameMode() {
+  isRenameMode = false;
+  itemToRename = null;
+  const btn = document.getElementById('RenameBtn');
+  const container = document.getElementById('fileListContainer');
+  btn.classList.remove('active');
+  btn.textContent = 'Renomear';
+  container.classList.remove('rename-mode-active');
+}
+
+// Toggle pelo botão principal
+document.getElementById('RenameBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isRenameMode) deactivateRenameMode();
+  else activateRenameMode();
+});
+
+// Desativa se clicar fora da lista ou do botão
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('RenameBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if (isRenameMode && !btn.contains(e.target) && !container.contains(e.target) && !namePromptModal.contains(e.target)) {
+    deactivateRenameMode();
+  }
+});
+
+// Abre o Modal Reaproveitado
+function openRenameModal(file) {
+  itemToRename = file;
+  promptMode = 'rename'; // Ativa a flag para o submit do modal
+  
+  const nomeAtual = file.nome_original || file.nome;
+  namePromptTitle.textContent = 'Renomear ' + (file.tipo === 'pasta' ? 'pasta' : 'arquivo');
+  namePromptInput.value = nomeAtual;
+  namePromptInput.placeholder = 'Digite o novo nome';
+  namePromptModal.showModal();
+
+  // UX Maroto: Seleciona só o nome antes da extensão para arquivos
+  if (file.tipo !== 'pasta' && nomeAtual.includes('.')) {
+    namePromptInput.setSelectionRange(0, nomeAtual.lastIndexOf('.'));
+  } else {
+    namePromptInput.select();
+  }
+}
+
+// Executa a requisição para o backend
+async function executeRename(novoNome) {
+  if (!itemToRename || !novoNome) return;
+
+  const nome_alvo = itemToRename.nome_original || itemToRename.nome;
+  const caminho_arquivo = currentPath === '/' ? `/${nome_alvo}` : `${currentPath}/${nome_alvo}`;
+
+  const bodyPayload = {
+    novo_nome_arquivo: novoNome, // Apenas o novo nome escolhido
+    caminho_arquivo: caminho_arquivo, // Caminho completo atual
+    pasta_ou_arquivo: itemToRename.tipo === 'pasta' ? 'pasta' : 'arquivo',
+    mover: 'nao' // Diferencial pro endpoint agir apenas como rename
+  };
+
+  try {
+    const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/renomear`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyPayload)
+    });
+
+    if (response.ok) {
+      listFolderContents(currentPath); // Atualiza a tela
+    } else {
+      console.error('Falha ao renomear arquivo/pasta no servidor');
+    }
+  } catch (error) {
+    console.error('Erro na requisição de renomear:', error);
+  } finally {
+    deactivateRenameMode();
+  }
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
