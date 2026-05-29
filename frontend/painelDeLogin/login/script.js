@@ -7,25 +7,10 @@ window.AUTH = {
   refreshPromise: null
 };
 
-// =======================================================
-// VAULT TOKEN
-// =======================================================
-
-function setVaultToken(token) {
-  window.AUTH.vaultToken = token;
-}
-
-function clearVaultToken() {
-  window.AUTH.vaultToken = null;
-}
 
 // =======================================================
 // AUTH CONTROL
 // =======================================================
-
-function clearAuth() {
-  clearVaultToken();
-}
 
 function redirectToLogin() {
   if (window.location.pathname.includes('/login/')) return;
@@ -40,7 +25,6 @@ async function forceLogout() {
     });
   } catch (_) {}
 
-  clearAuth();
   redirectToLogin();
 }
 
@@ -91,17 +75,6 @@ async function apiFetch(url, options = {}, retry = true) {
 
   const headers = new Headers(options.headers || {});
 
-  // =====================================================
-  // VAULT TOKEN
-  // só envia se explicitamente solicitado
-  // =====================================================
-
-  if (options.useVaultToken && window.AUTH.vaultToken) {
-    headers.set(
-      'X-Vault-Token',
-      `Bearer ${window.AUTH.vaultToken}`
-    );
-  }
 
   // =====================================================
   // CONFIG FINAL
@@ -116,20 +89,7 @@ async function apiFetch(url, options = {}, retry = true) {
 
   let response = await fetch(url, config);
 
-  // =====================================================
-  // VAULT TOKEN EXPIRADO
-  // não tenta refresh do auth principal
-  // =====================================================
 
-  if (response.status === 401 && options.useVaultToken) {
-    clearVaultToken();
-
-    if (typeof mostrarVaultExpirado === 'function') {
-      mostrarVaultExpirado();
-    }
-
-    return response;
-  }
 
   // =====================================================
   // ACCESS TOKEN EXPIRADO
