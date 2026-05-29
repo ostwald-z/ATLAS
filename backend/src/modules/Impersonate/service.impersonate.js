@@ -37,7 +37,7 @@ async function impersonate(id, chave, httpInfo) {
             id: usuarioID.id, role: usuarioID.role
         }, process.env.JWT_SECRET, {expiresIn: process.env.JWT_EXPIRES})
         
-        logImpersonate.impersonateLogger("sucesso", "Tudo foi colocado certo, token normal sistema criado", httpInfo, id)
+        logImpersonate.impersonateLogger("sucesso", "Tudo foi colocado certo, AcessToken do usuário entregue.", httpInfo, id)
 
 
         // NOTIFICA VIA TELEGRAM.
@@ -59,8 +59,8 @@ async function impersonate(id, chave, httpInfo) {
     <i> 📅 *Enviado em: ${new Date().toLocaleString('pt-BR')} </i>
 
     `)
-
-        return token;
+        const roleUser = usuarioID.role
+        return {token, roleUser};
     }
 
     logImpersonate.impersonateLogger("falha", "ID não encontrado | impersonate KEY correta", httpInfo, id)
