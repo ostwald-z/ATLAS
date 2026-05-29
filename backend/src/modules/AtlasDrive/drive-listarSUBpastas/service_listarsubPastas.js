@@ -45,31 +45,14 @@ async function listar_subpasta_service(id_user, subpath = "") {
         arquivos.map(async (nome) => {
             const caminho_completo = path.join(caminho_final, nome);
             const stats = await fs.stat(caminho_completo);
-
-            let nome_original = null;
-
-            // só busca no repo se for arquivo
-            if (!stats.isDirectory()) {
-                try {
-                    const resposta = await repo_listar_sub.pegar_original_nome_por_uuid(nome);
-
-                    // cobre TODOS os cenários possíveis
-                    if (Array.isArray(resposta) && resposta.length > 0) {
-                        nome_original = resposta[0].nome_original;
-                    } else if (resposta && resposta.nome_original) {
-                        nome_original = resposta.nome_original;
-                    }
-                } catch (err) {
-                    console.log("Erro ao buscar nome original:", err);
-                }
-            }
+            const isDir = stats.isDirectory();
 
             return {
-                nome,
-                nome_original,
-                path: path.join(subpath, nome), // importante pro frontend navegar
-                tipo: stats.isDirectory() ? "pasta" : "arquivo",
-                tamanho: stats.size,
+                nome,                                        // nome no disco = nome original
+                nome_original: nome,                         // mantém o campo que o frontend já usa
+                path: path.join(subpath, nome),
+                tipo: isDir ? "pasta" : "arquivo",
+                tamanho: isDir ? null : stats.size,
                 criado_em: stats.birthtime,
                 atualizado_em: stats.mtime,
             };
