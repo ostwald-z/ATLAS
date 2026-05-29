@@ -6,25 +6,28 @@ const fs = require("fs");
 
 async function download_arquivo_service(caminho_do_arquivo, id_de_quem_chama) {
     
-    const [arquivo_buscar] = await repo_download.buscar_arquivo_sql(caminho_do_arquivo, id_de_quem_chama)
 
-    // se o NOME colocado na requisição, não existir 
-    // OU o ID_owner do arquivo que de fato foi puxado NÃO CORRESPONDER ao ID de quem solicitou a requisição
-    // por segurança, erro: Arquivo não encontrado (ou o ID do dono do arquivo não era o mesmo de quem pediu)
-    if (!arquivo_buscar) {
-        console.log(caminho_do_arquivo)
-        throw new AppError('Arquivo não encontrado', 404)
-    }
+    // frontend chama sempre /arquivo, ou /pasta1/arquivo.txt - no banco, os caminhos dos arquivos SEMPRE começam SEM /
+    // começam apenas com o nome direto.
+
+    const caminho_do_arquivo_limpo = caminho_do_arquivo.replace(/^\//, '');
+
+    //const [arquivo_buscar] = await repo_download.buscar_arquivo_sql(caminho_do_arquivo_limpo, id_de_quem_chama)
 
 
-    id_owner_arquivo = arquivo_buscar.id
+    //id_owner_arquivo = arquivo_buscar.id
 
 
     const pasta_raiz_do_cloud_atlas = process.env.ATLAS_CLOUD_PATH
 
-    // caminho completo no disco
-    const filePath = path.join(pasta_raiz_do_cloud_atlas, String(id_de_quem_chama), arquivo_buscar.caminho)
+    const pasta_base_usuario = path.join(pasta_raiz_do_cloud_atlas, String(id_de_quem_chama))
 
+    // caminho completo no disco
+    const filePath = path.join(pasta_base_usuario, caminho_do_arquivo_limpo)
+
+    if(!filePath.startsWith(pasta_base_usuario)){
+        throw new AppError("Não autorizado", 403)
+    }
 
     // verifica se o arquivo existe no disco
     if (!fs.existsSync(filePath)) {
@@ -32,10 +35,22 @@ async function download_arquivo_service(caminho_do_arquivo, id_de_quem_chama) {
     }
 
 
+
+    // nome do arquivo
+    const nomeArquivo = path.basename(filePath)
+
+    // extensão
+    const extensao = path.extname(filePath)
+
+    // mime type
+    //const mimeType = mime.lookup(filePath) || 'application/octet-stream'
+
+
+
     return {
         path: filePath,
-        originalName: arquivo_buscar.nome_original,
-        mimeType: arquivo_buscar.tipo
+        originalName: nomeArquivo,
+        mimeType: extensao
 
     }
 
