@@ -2,7 +2,6 @@ const AppError = require("../../../error/AppError");
 
 const fs = require("fs/promises");
 const path = require("path");
-const crypto = require("crypto");
 
 const repo_upload = require("./repo.upload");
 
@@ -39,11 +38,17 @@ async function upload_arquivo_service(arquivo, dono_id, caminho_escolhido = "") 
     // 📁 Garante que a pasta existe
     await fs.mkdir(pastaUsuario, { recursive: true });
 
-    // 🔹 Gera nome único
-    const extension = path.extname(arquivo.originalname);
-    const uniqueName = crypto.randomUUID() + extension;
+    // 🔹 pega nome 
+    const nomeOriginal = arquivo.originalname;
 
-    const caminhoCompleto = path.join(pastaUsuario, uniqueName);
+    //const caminhoCompleto = path.join(pastaUsuario, nomeOriginal);
+
+
+    const caminhoOriginalDestino = path.join(pastaUsuario, nomeOriginal);
+
+    const caminhoCompleto = await gerarCaminhoSemConflito(
+        caminhoOriginalDestino
+    );
 
     /**
      * ✅ AQUI ESTÁ A MUDANÇA PRINCIPAL
@@ -85,26 +90,77 @@ async function upload_arquivo_service(arquivo, dono_id, caminho_escolhido = "") 
     }
 
 
-    // 🔹 Caminho relativo (pra salvar no banco)
+    /* 🔹 Caminho relativo (pra salvar no banco)
     const caminhoRelativo = path
         .posix
-        .join(safeSubPath, uniqueName)
+        .join(safeSubPath, nomeOriginal)
         .replace(/^\/+/, "");
+    */
 
+
+    /*  não precisamos mais salvar no banco, tudo vai se basear no disco.
     const metadata = {
         owner_id: dono_id,
         name: arquivo.originalname,
         path: caminhoRelativo,
         type: arquivo.mimetype,
         size: arquivo.size,
-        uuid: uniqueName
     };
 
     // 💾 Salva metadata no banco
     const resultado = await repo_upload.upload_arquivo(metadata);
 
-    return resultado;
+    */
+
+
+    return "ok";
 }
+
+
+
+// evita arquivos com o mesmo nome no upload
+
+async function gerarCaminhoSemConflito(caminhoOriginal) {
+
+    const diretorio = path.dirname(caminhoOriginal);
+
+    const extensao = path.extname(caminhoOriginal);
+
+    let nomeBase = path.basename(caminhoOriginal, extensao);
+
+    // remove " (numero)" existente
+    nomeBase = nomeBase.replace(/\s\(\d+\)$/, '');
+
+    let contador = 1;
+
+    let caminhoFinal = caminhoOriginal;
+
+    while (true) {
+
+        try {
+
+            await fs.access(caminhoFinal);
+
+            // existe → gera próximo nome
+            const novoNome = `${nomeBase} (${contador})${extensao}`;
+
+            caminhoFinal = path.join(diretorio, novoNome);
+
+            contador++;
+
+        } catch {
+
+            // não existe → pode usar
+            return caminhoFinal;
+        }
+    }
+}
+
+
+
+
+
+
 
 module.exports = {
     upload_arquivo_service
