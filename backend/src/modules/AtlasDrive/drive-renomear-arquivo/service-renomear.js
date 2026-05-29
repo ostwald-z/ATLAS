@@ -47,22 +47,9 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
                 fs.mkdirSync(pastaDestinoPai, { recursive: true });
             }
 
-            fs.renameSync(normalizadoOrigem, normalizadoDestino);
+            const destinoSemConflito = gerarCaminhoSemConflito(normalizadoDestino);
 
-            if (pasta_ou_arquivo === "arquivo") {
-                repo_atualizar_caminho_arquivos.repo_atualizar_caminho_arquivo(
-                    caminhoOrigemSeguro,
-                    id_de_quem_chama,
-                    caminhoSeguro
-                );
-                
-            } else {
-                repo_atualizar_caminho_arquivos.repo_atualizar_caminho_arquivos_dentro_de_pasta(
-                    caminhoOrigemSeguro,
-                    id_de_quem_chama,
-                    caminhoSeguro
-                );
-            }
+            fs.promises.rename(normalizadoOrigem, destinoSemConflito);
 
             return { status: "sucesso", operacao: "mover" };
 
@@ -75,10 +62,12 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
 
     if (pasta_ou_arquivo === "pasta") {
 
+        const caminhoSeguro = caminho_arquivo.replace(/^\/+/, '').replace(/\\/g, '/');
+
         const novo_nome_pasta = sanitizarNomePasta(novo_nome)
 
-        const pasta_usuario = path.resolve(process.env.ATLAS_CLOUD_PATH, String(id_de_quem_chama))
-        const caminho_completo_com_arquivo_antigo = path.resolve(pasta_usuario, caminho_arquivo)
+        const pasta_usuario = path.join(process.env.ATLAS_CLOUD_PATH, String(id_de_quem_chama))
+        const caminho_completo_com_arquivo_antigo = path.join(pasta_usuario, caminhoSeguro)
 
 
         //verifica se o caralho existe
@@ -114,49 +103,66 @@ async function renomear_arquivo(caminho_arquivo, id_de_quem_chama, novo_nome, pa
 
         //tenta renomear o caralho
         try {
-            fs.renameSync(caminho_completo_com_arquivo_antigo, novo_caminho_com_novo_nome);
+            const caminhoFinalSemConflito = gerarCaminhoSemConflito(novo_caminho_com_novo_nome);
 
-            // --- AQUI ESTÁ O PULO DO GATO ---
-            // Precisamos calcular o "novo_caminho_relativo" para mandar pro banco
-            // Se caminho_arquivo era "fotos" e o novo nome é "viagem", o novo caminho é "viagem"
-            // Se caminho_arquivo era "projetos/antigos" e novo nome é "finalizados", vira "projetos/finalizados"
-            
-            const diretorioPaiRelativo = path.dirname(caminho_arquivo);
-            const novo_caminho_relativo = diretorioPaiRelativo === '.' 
-                ? novo_nome_pasta 
-                : path.join(diretorioPaiRelativo, novo_nome_pasta).replace(/\\/g, '/');
+            await fs.promises.rename(caminho_completo_com_arquivo_antigo, caminhoFinalSemConflito);
 
-            // Chama a função que criamos para atualizar TUDO no banco (pasta e sub-arquivos)
-            await repo_atualizar_caminho_arquivos.repo_atualizar_caminho_arquivos_dentro_de_pasta(
-                caminho_arquivo, 
-                id_de_quem_chama, 
-                novo_caminho_relativo
-            );
-
-            return;
-
+            return { status: "sucesso", operacao: "renomear_pasta" }; // ← return aqui
         }catch (err) {
             console.log("erro ao renomear pasta: ", err);
-            throw new AppError("Erro ao renomear Pasta");}
+            throw new AppError("Erro ao renomear Pasta");
         }
-
+    }
+    
 
     if (pasta_ou_arquivo === "arquivo") {
-        const renomear_nome_original_no_repo = await repo_renomear_arquivo.repo_renomear_arquivo(novo_nome, caminho_arquivo, id_de_quem_chama)
 
-        if(renomear_nome_original_no_repo.affectedRows === 0){
-            console.log("Erro, arquivo nao encontrado no SQL", renomear_nome_original_no_repo.affectedRows)
-            throw new AppError("Arquivo não encontrado", 404)
+        const caminhoSeguro = caminho_arquivo.replace(/^\/+/, '').replace(/\\/g, '/');
+
+        const novo_nome_arquivo_sanitizado = sanitizarNomePasta(novo_nome); // reutiliza o sanitizador existente
+
+        const pasta_usuario = path.join(process.env.ATLAS_CLOUD_PATH, String(id_de_quem_chama));
+        const caminho_completo_arquivo_antigo = path.join(pasta_usuario, caminhoSeguro);
+
+        // Verifica se a pasta base do usuário existe
+        if (!fs.existsSync(pasta_usuario)) {
+            console.log("Pasta base do usuario não existe");
+            throw new AppError("Diretório base não existe", 404);
         }
 
-        return;
+        // Verifica se o arquivo de origem existe
+        if (!fs.existsSync(caminho_completo_arquivo_antigo)) {
+            console.log("Arquivo escolhido não existe");
+            throw new AppError("Arquivo escolhido não existe", 404);
+        }
+
+        // Monta o novo caminho: mesma pasta pai + novo nome
+        const pastaPai = path.dirname(caminho_completo_arquivo_antigo);
+        const novoNomeSeguro = novo_nome_arquivo_sanitizado.replace(/[\\/]/g, '');
+        const novo_caminho_com_novo_nome = path.join(pastaPai, novoNomeSeguro);
+
+        // Validação de segurança: impede path traversal
+        if (!caminho_completo_arquivo_antigo.startsWith(pasta_usuario) ||
+            !novo_caminho_com_novo_nome.startsWith(pasta_usuario)) {
+            console.log("Acesso não autorizado: Tentativa de sair do diretório permitido");
+            throw new AppError("Acesso não autorizado: Tentativa de sair do diretório permitido.", 403);
+        }
+
+        // Renomeia no disco, evitando conflito de nomes
+        try {
+            const caminhoFinalSemConflito = gerarCaminhoSemConflito(novo_caminho_com_novo_nome);
+            await fs.promises.rename(caminho_completo_arquivo_antigo, caminhoFinalSemConflito);
+            return { status: "sucesso", operacao: "renomear_arquivo" };
+        } catch (err) {
+            console.log("erro ao renomear arquivo: ", err);
+            throw new AppError("Erro ao renomear arquivo");
+        }
     }
 
+
     throw new AppError("Não foi definido corretamente se é arquivo ou pasta.")
-
-
-
 }
+
 
 
 
@@ -200,6 +206,40 @@ function sanitizarNomePasta(nome) {
 
     return nomeLimpo.substring(0, 255); // Limite de 255 caracteres padrão de sistemas de arquivos
 }
+
+
+
+
+
+// evitamos nomes duplicados, para pastas e arquivos, no mover e renomear
+
+function gerarCaminhoSemConflito(caminhoDestinoOriginal) {
+
+    const diretorio = path.dirname(caminhoDestinoOriginal);
+
+    const extensao = path.extname(caminhoDestinoOriginal);
+
+    let nomeArquivo = path.basename(caminhoDestinoOriginal, extensao);
+
+    // remove " (numero)" do final
+    nomeArquivo = nomeArquivo.replace(/\s\(\d+\)$/, '');
+
+    let contador = 1;
+
+    let caminhoFinal = caminhoDestinoOriginal;
+
+    while (fs.existsSync(caminhoFinal)) {
+
+        const novoNome = `${nomeArquivo} (${contador})${extensao}`;
+
+        caminhoFinal = path.join(diretorio, novoNome);
+
+        contador++;
+    }
+
+    return caminhoFinal;
+}
+
 
 
 module.exports = {renomear_arquivo}
