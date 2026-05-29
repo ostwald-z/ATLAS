@@ -37,18 +37,21 @@ async function deletar_drive_serice(caminho, id_user, pasta_ou_arquivo) {
             }
         }
         // No banco, enviamos o caminho limpo (sem barra)
-        await repo_deletar_drive.deletar_arquivos_por_pasta_repo(caminho_relativo_limpo, id_user);
+        // await repo_deletar_drive.deletar_arquivos_por_pasta_repo(caminho_relativo_limpo, id_user);
         return;
     }
 
     // 6. Lógica para ARQUIVO
     // Primeiro deletamos no Banco (usando o caminho limpo)
-    const deletar = await repo_deletar_drive.deletar_drive_repo(caminho_relativo_limpo, id_user);
+    // const deletar = await repo_deletar_drive.deletar_drive_repo(caminho_relativo_limpo, id_user);
     
+    /*
     if (deletar.affectedRows === 0) {
         // Se não achou com o caminho limpo, o arquivo não existe no banco
         throw new AppError("Arquivo não encontrado no banco.", 404);
     }
+    
+    */
 
     // Depois deletamos no Disco
     try {
@@ -57,8 +60,7 @@ async function deletar_drive_serice(caminho, id_user, pasta_ou_arquivo) {
         }
     } catch (err) {
         console.error('Erro ao deletar o arquivo físico:', err);
-        // Opcional: Não dar throw aqui se o banco já foi limpo, 
-        // ou fazer um rollback se seu banco suportar transação.
+        throw new AppError("Erro ao deletar arquivo físico", 500)
     }
 }
 
