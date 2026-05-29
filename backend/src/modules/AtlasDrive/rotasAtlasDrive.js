@@ -77,49 +77,7 @@ const controller_delete_vault = require("./AtlasVault/AtlasVault-delete/controll
 //----------------------------------------------- ROTAS --------------------------------------------------
 
 
-//TUDO REFERENTE AO ATLAS_VAULT !!!!!!!!!
-
-
-//VERIFICA ACESSO INICIAL RENOMEAR
-rotaDrive.post("/vault/verificar-acesso", authMiddle, middleRole("admin"), controller_vault.controller_verificar_acesso_inicial)
-
-// autentica de fato o usuario após acertar a senha no painel , entrega SESSION TOKEN (sessionStorage)
-// essa rota da o bearer token vault para mexer no vault de fato.
-rotaDrive.post("/vault/autenticar", middlewareRate, authMiddle, middleRole("admin"), controller_vault_autenticar.controller_verificar_senha_vault)
-
-
-// ROTA QUE LISTA A PORRA DO ATLAS VAULT  (MIDDLEWARE PERSONALIZADO para ler TOKEN DADO PARA ALTERAÇÕES E LEITURA DO VAULT)
-rotaDrive.get("/vault/listar", authMiddle_vault, controller_lista_vault.listar_pastas_vault)
-
-
-// ROTA QUE RENOMEIA/MOVE PASTAS E ARQUIVOS DENTRO DO VAULT
-rotaDrive.patch("/vault/renomear", authMiddle_vault, controller_renomear_vault.renomear_arquivo_controller_vault)
-
-// importa middleware especifico pra download no vault, porque nao conseguimos enviar header
-// personlizado pra vault token e manter download nativo do browser.
-
-//ATUALIZAÇÃO, NAO USAMOS MAIS ESSE MIDDLEWARE, AGORA usamos o token do vault por COOKIE tambem
-const {authMiddle_bearer_vaultDownload} = require("../../middlewares/authMiddleVaultDownload")
-
-// ROTA DE DOWNLOAD DE ARQUIVOS para o VAULT DRIVE
-rotaDrive.post("/vault/download", authMiddle_vault, controller_download_vault.controller_download_vault)
-
-
-// ROTA DE UPLOAD DE ARQUIVOS PARA VAULT DRIVE
-rotaDrive.post("/vault/upload", authMiddle_vault, upload_middle.array("files"), controller_upload_vault.drive_upload_vault)
-
-
-//ROTA DE DELETE PARA ARQUIVOS E PASTAS VAULT
-rotaDrive.delete("/vault/deletar", authMiddle_vault, controller_delete_vault.controller_deletar_arquivo_vault)
-
-//importa controlller de logout pro vault
-const controller_logout_vault = require("./AtlasVault/controller_logout_vault")
-
-rotaDrive.post("/vault/logout-vault", controller_logout_vault.controller_logout_vault)
-
-
-
-//=================================== ROTAS PARA O ATLAS-DRIVE PADRÃO NORMAL NÃO SECRETO  ========================================
+//=================================== ROTAS PARA O ATLAS-DRIVE  ========================================
 
 
 
@@ -149,8 +107,13 @@ rotaDrive.get("/cloud", authMiddle, middleRole(["user", "admin"]), controller_li
 rotaDrive.post("/criar-nova-Pasta", authMiddle, middleRole(["user", "admin"]), controller_criar_pasta_context.controller_criar_pasta_context)
 
 
+// UPLOAD MULTIPART ================
 
+const controller_multi = require("./drive-upload-multipart/controller_multipart_upload")
 
+rotaDrive.post("/upload-mult/initiate", authMiddle, middleRole(["user", "admin"]), controller_multi.controller_initiate_upload)
+rotaDrive.post("/upload-mult/part", authMiddle, middleRole(["user", "admin"]), controller_multi.uploadPart_controller)
+rotaDrive.post("/upload-mult/complete", authMiddle, middleRole(["user", "admin"]), controller_multi.complete_controller)
 
 
 
