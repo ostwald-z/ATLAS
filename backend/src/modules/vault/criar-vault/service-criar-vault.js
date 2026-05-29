@@ -31,20 +31,23 @@ async function service_criar_vault(id, vaultName, vaultBuffer) {
     }
 
 
-    // cria no disco, depois no banco    
+    // cria no disco
     const pasta_vaults = process.env.CAMINHO_VAULTS
 
-    const caminho_completo = path.join(pasta_vaults, vaultName)
+    const pasta_base_user = path.join(pasta_vaults, String(id))
+
+
+    const caminho_completo = path.join(pasta_base_user, vaultName)
     const caminho_completo_normalizado = path.resolve(caminho_completo)
 
     // garante que o caminho final está dentro da pasta de vaults
-    if (!caminho_completo_normalizado.startsWith(path.resolve(pasta_vaults))) {
+    if (!caminho_completo_normalizado.startsWith(path.resolve(pasta_base_user))) {
         throw new AppError("Acesso não permitido", 403);
     }
 
     try {
         // garante que a pasta existe
-        await fs.mkdir(pasta_vaults, { recursive: true })
+        await fs.mkdir(pasta_base_user, { recursive: true })
 
         // verifica se já existe
         try {
@@ -60,10 +63,6 @@ async function service_criar_vault(id, vaultName, vaultBuffer) {
 
         // escreve o arquivo no disco
         await fs.writeFile(caminho_completo_normalizado, vaultBuffer)
-
-        
-        // salvar no banco
-        await repo.criar_vault_banco(vaultName, id)
 
 
         return {
