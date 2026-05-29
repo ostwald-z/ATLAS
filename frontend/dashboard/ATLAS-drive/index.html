@@ -29,8 +29,25 @@
     <div class="actions-bar">
       <button id="newFolderBtn" class="action-btn">+ Nova pasta</button>
       <button id="newTxtBtn" class="action-btn">📄 Criar TXT</button>
-      </div>
+      <button id="newDownloadBtn" class="action-btn">Download</button>
+      <button id="DeleteBtn" class="action-btn">Deletar</button>
+      <button id="MoveBtn" class="action-btn">Mover</button>
+      <button id="RenameBtn" class="action-btn">Renomear</button>
+      <button id="UploadBtn" class="action-btn">Upload</button>
+    </div>
 
+    <input type="file" id="hiddenFileInput" multiple style="display: none;" />
+
+    <div id="uploadProgressContainer" class="upload-progress-container" style="display: none;">
+      <div class="progress-info">
+        <span id="uploadStatusText">Iniciando upload...</span>
+        <span id="uploadPercentage">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="uploadProgressBar" class="progress-bar-fill"></div>
+      </div>
+    </div>
+    
 
     <section class="drive-section">
       <div class="drive-header-row">
@@ -46,7 +63,7 @@
 
 
   <dialog id="folderModal" class="minimal-modal">
-    <form method="dialog">
+    <form>
       <p class="modal-title">Nova pasta</p>
       <input type="text" id="folderNameInput" placeholder="Nome da pasta" autocomplete="off" required />
       <div class="modal-actions">
