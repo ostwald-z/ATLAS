@@ -11,7 +11,7 @@ async function renomear_arquivo_controller(req,res,next) {
         console.log("controller chegou aqui")
         console.log("BODY: ", novo_nome_arquivo, caminho_arquivo, pasta_ou_arquivo, mover)
 
-        const resultado = await service_renomear_arquivo.renomear_arquivo(caminho_arquivo, id_user, novo_nome_arquivo, pasta_ou_arquivo, mover)
+        await service_renomear_arquivo.renomear_arquivo(caminho_arquivo, id_user, novo_nome_arquivo, pasta_ou_arquivo, mover)
 
         res.status(200).json({
             message: "Arquivo renomeado com sucesso."
