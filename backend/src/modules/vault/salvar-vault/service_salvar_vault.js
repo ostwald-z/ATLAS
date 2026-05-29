@@ -9,22 +9,14 @@ async function salvar_vault_service(vaultName, id, arquivo) {
     
     console.log("SALVAR VAULT: ", vaultName)
 
-    const [vaultUser] = await repo.buscarVault(vaultName, id)
-
-    if(!vaultUser){
-        console.log("Não econtrei nenhum vault com esse nome: ", vaultUser)
-        throw new AppError("Não encontrando nenhum vault com esse nome", 404)
-    }
-
-    const nome_vault_user = vaultUser.nome_vault
     const pastas_vaults = process.env.CAMINHO_VAULTS
+    const pasta_base_user = path.join(pastas_vaults, String(id))
 
-
-    const caminho_completo = path.join(pastas_vaults, nome_vault_user)
+    const caminho_completo = path.join(pasta_base_user, vaultName)
     const caminho_completo_normalizado = path.resolve(caminho_completo)
 
-    // garante que o caminho final está dentro da pasta de vaults
-    if (!caminho_completo_normalizado.startsWith(path.resolve(pastas_vaults))) {
+    // garante que o caminho final está dentro da pasta de vaults do usuário
+    if (!caminho_completo_normalizado.startsWith(path.resolve(pasta_base_user))) {
         throw new AppError("Acesso não permitido", 403);
     }
 
@@ -45,7 +37,6 @@ async function salvar_vault_service(vaultName, id, arquivo) {
         console.error("Erro crítico ao gravar arquivo no disco:", error);
         throw new AppError("Erro interno ao salvar as alterações do vault", 500);
     }
-
 }
 
 

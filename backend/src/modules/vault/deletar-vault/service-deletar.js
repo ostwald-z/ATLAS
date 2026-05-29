@@ -8,43 +8,27 @@ const path = require("path")
 
 async function service_deletar(vaultName, id) {
     
-    const [vaultUser] = await repo.buscarVault(vaultName, id)
-
-    if(!vaultUser){
-        throw new AppError("Vault não encontrado no servidor", 404)
-    }
-
     const pasta_vaults = process.env.CAMINHO_VAULTS
-    const nome_vault_user = vaultUser.nome_vault
+    const pasta_base_user = path.join(pasta_vaults, String(id))
 
-    const caminho_completo = path.join(pasta_vaults, nome_vault_user)
+    const caminho_completo = path.join(pasta_base_user, vaultName)
+
     const caminho_normalizado = path.resolve(caminho_completo)
 
-    // verifica se ESTÁ dentro da pasta vaults o caminho final ( contra path transversal)
-        const pasta_vaults_normalizada = path.resolve(pasta_vaults)
-
-    const caminhoSeguro = caminho_normalizado.startsWith(
-        pasta_vaults_normalizada + path.sep
-    )
-
-    if (!caminhoSeguro) {
-        throw new AppError("Caminho inválido", 400)
+    // garante que o caminho final está dentro da pasta de vaults
+    if (!caminho_normalizado.startsWith(path.resolve(pasta_base_user))) {
+        throw new AppError("Acesso não permitido", 403);
     }
 
     // verifica se o arquivo existe no disco
     try {
         await fs.access(caminho_normalizado)
     } catch {
-        throw new AppError("Arquivo do vault não encontrado no disco", 404)
+        throw new AppError("Arquivo do vault não encontrado no servidor", 404)
     }
 
     // remove o arquivo
     await fs.unlink(caminho_normalizado)
-
-    const vault = vaultUser.nome_vault
-
-    //remover do banco também
-    await repo.deletar_vault_banco(vault, id)
 
     return "ok"
 
