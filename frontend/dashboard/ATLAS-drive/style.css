@@ -474,3 +474,24 @@ body {
   box-shadow: inset 3px 0 0 0 var(--accent);
   opacity: 0.8;
 }
+
+
+
+
+/* MODO LER TXT */
+.action-btn#OpenTxtBtn.active {
+  background-color: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.open-txt-mode-active .file-row.is-folder {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.open-txt-mode-active .file-row.is-file {
+  cursor: text;
+}
+.open-txt-mode-active .file-row.is-file:hover {
+  background-color: var(--hover);
+  box-shadow: inset 3px 0 0 0 var(--text-muted);
+}

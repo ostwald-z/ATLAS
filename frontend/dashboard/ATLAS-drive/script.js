@@ -182,6 +182,12 @@ function renderRows(files) {
         return;
       }
 
+      if (isOpenTxtMode) {
+        e.stopPropagation();
+        executeOpenTxtClick(file);
+        return;
+      }
+
       if (isDeleteMode) {
         e.stopPropagation();
         executeFileDelete(file);
@@ -983,6 +989,175 @@ async function executeRename(novoNome) {
     deactivateRenameMode();
   }
 }
+
+
+
+
+
+
+
+
+
+
+// ════════════════════════════════════════════════════════
+// Lógica de ABRIR E EDITAR TXT 
+// ════════════════════════════════════════════════════════
+
+let isOpenTxtMode = false;
+let editingTxtCaminho = null; // Guarda o caminho se for modo de edição
+
+// Toggle Mode
+function activateOpenTxtMode() {
+  if (isDownloadMode) deactivateDownloadMode();
+  if (isDeleteMode) deactivateDeleteMode();
+  if (isMoveMode) deactivateMoveMode();
+  if (isRenameMode) deactivateRenameMode();
+
+  isOpenTxtMode = true;
+  const btn = document.getElementById('OpenTxtBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if(btn) {
+    btn.classList.add('active');
+    btn.textContent = 'Selecione o TXT...';
+  }
+  container.classList.add('open-txt-mode-active');
+}
+
+function deactivateOpenTxtMode() {
+  isOpenTxtMode = false;
+  const btn = document.getElementById('OpenTxtBtn');
+  const container = document.getElementById('fileListContainer');
+  
+  if(btn) {
+    btn.classList.remove('active');
+    btn.textContent = 'Ler/Editar TXT';
+  }
+  container.classList.remove('open-txt-mode-active');
+}
+
+// Evento do botão principal (Toggle)
+document.getElementById('OpenTxtBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isOpenTxtMode) deactivateOpenTxtMode();
+  else activateOpenTxtMode();
+});
+
+// Desativa se clicar fora
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('OpenTxtBtn');
+  const container = document.getElementById('fileListContainer');
+  const modal = document.getElementById('editorModal');
+  
+  if (isOpenTxtMode && btn && !btn.contains(e.target) && !container.contains(e.target) && !modal.contains(e.target)) {
+    deactivateOpenTxtMode();
+  }
+});
+
+// Validação e Download Native (em memória)
+async function executeOpenTxtClick(file) {
+  const nome = file.nome_original || file.nome;
+  const ext = nome.toLowerCase().split('.').pop();
+  
+  // Regra 1: Apenas arquivos .txt
+  if (file.tipo === 'pasta' || ext !== 'txt') {
+    alert('Erro ao mostrar conteudo: arquivo pode não ser texto (apenas .txt).');
+    return;
+  }
+
+  // Regra 2: Limite de 5MB
+  if (file.tamanho > 5 * 1024 * 1024) {
+    alert('Arquivo de texto muito grande para abrir conteúdo - baixe e visualize localmente.');
+    return;
+  }
+
+  deactivateOpenTxtMode(); // Desativa o toggle visual
+
+  const caminho_arquivo = currentPath === '/' ? `/${nome}` : `${currentPath}/${nome}`;
+
+  try {
+    // Baixa o arquivo para a memória usando a rota de download existente
+    const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/download`, {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caminho_arquivo })
+    });
+
+    if (!response.ok) throw new Error('Falha no servidor ao baixar TXT');
+
+    // Extrai o texto puro direto do Blob nativo
+    const blob = await response.blob();
+    const textContent = await blob.text(); 
+
+    // Alimenta o modal e variáveis globais
+    editingTxtCaminho = caminho_arquivo; // Sinaliza que estamos editando um arquivo existente
+    currentTxtName = nome; 
+    
+    document.getElementById('editorFilename').textContent = nome;
+    document.getElementById('editorTextarea').value = textContent;
+    document.getElementById('editorModal').showModal();
+
+  } catch (error) {
+    console.error('Erro ao abrir TXT:', error);
+    alert('Erro ao carregar o conteúdo do arquivo.');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// UNIFICAÇÃO DO BOTÃO "SALVAR" (Criar Novo vs Atualizar Existente)
+// ════════════════════════════════════════════════════════
+
+// Truque ninja: Clonamos o botão de salvar atual para remover o EventListener antigo dele
+// de forma totalmente limpa sem quebrar as outras funções, permitindo unificar a lógica.
+const oldSaveBtn = document.getElementById('saveEditorBtn');
+const unifiedSaveBtn = oldSaveBtn.cloneNode(true);
+oldSaveBtn.parentNode.replaceChild(unifiedSaveBtn, oldSaveBtn);
+
+unifiedSaveBtn.addEventListener('click', async () => {
+  unifiedSaveBtn.textContent = 'Salvando...';
+  unifiedSaveBtn.disabled = true;
+
+  const content = document.getElementById('editorTextarea').value;
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const fileToUpload = new File([blob], currentTxtName, { type: 'text/plain' });
+
+  try {
+    // Se 'editingTxtCaminho' estiver preenchido, significa que abrimos um TXT existente.
+    // Deletamos a versão original primeiro conforme a regra solicitada.
+    if (editingTxtCaminho) {
+      await apiFetch(`${API_BASE_URL}api/atlas-drive/delete`, {
+        method: "DELETE",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caminho_arquivo: editingTxtCaminho, pasta_ou_arquivo: 'arquivo' })
+      });
+    }
+
+    // Faz o Upload (Funciona tanto pra recém-criados quanto pra edição do arquivo deletado acima)
+    const formData = new FormData();
+    formData.append('files', fileToUpload);
+    formData.append('caminho_escolhido', currentPath);
+
+    const response = await apiFetch(`${API_BASE_URL}api/atlas-drive/upload`, {
+      method: 'POST',
+      body: formData 
+    });
+
+    if (response.ok) {
+      document.getElementById('editorModal').close();
+      listFolderContents(currentPath); // Atualiza o diretório
+    } else {
+      alert('Falha ao salvar o arquivo de texto.');
+    }
+  } catch (error) {
+    console.error('Erro no fluxo de save do TXT:', error);
+    alert('Erro ao processar o salvamento do arquivo.');
+  } finally {
+    unifiedSaveBtn.textContent = 'Salvar Arquivo';
+    unifiedSaveBtn.disabled = false;
+    editingTxtCaminho = null; // Reseta estado de edição
+    document.getElementById('editorTextarea').value = ''; // Limpa a memória JS do textarea
+  }
+});
 
 
 
