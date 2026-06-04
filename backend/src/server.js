@@ -9,8 +9,7 @@ const cors = require("cors")
 
 // server.js ou routes/pages.js
 const path = require('path');
-const {verificarAcessoAdmin} = require('./middlewares/verificarAcesso-antes-de-carregar');
-const {verificarAcessoUser} = require("./middlewares/verificarAcesso-antes-User")
+
 
 // middleware de HTTP pra pegar info
 const  {httpInfoMiddleware} = require("./middlewares/httpInfoGet/httpInfo")

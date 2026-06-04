@@ -1,6 +1,3 @@
-const repo_renomear_arquivo = require("./repo-renomear")
-const repo_atualizar_caminho_arquivos = require("./repo-renomear")
-
 const AppError = require("../../../error/AppError")
 
 const fs = require("fs")

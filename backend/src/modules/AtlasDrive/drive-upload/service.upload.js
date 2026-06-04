@@ -3,7 +3,6 @@ const AppError = require("../../../error/AppError");
 const fs = require("fs/promises");
 const path = require("path");
 
-const repo_upload = require("./repo.upload");
 
 /**
  * Upload de arquivo usando STREAM (via multer diskStorage)

@@ -1,6 +1,5 @@
 const AppError = require("../../../error/AppError")
 
-const repo = require("./repo-salvar-vault")
 
 const fs = require("fs/promises")
 const path = require("path")

@@ -10,11 +10,6 @@ const upload_middle = require('../../middlewares/multter_arquivo')
 const {authMiddle} = require("../../middlewares/authMiddleware")
 
 
-
-//MIDDLEWARE DE VALIDAÇÃO DE TOKEN VAULT ATLAS DRIVE
-const {authMiddle_vault} = require("../../middlewares/authMiddleVaultDrive")
-
-
 // middleware de rate limit 
 const {middlewareRate} = require("../../middlewares/rateLimitMiddleware")
 
@@ -42,36 +37,6 @@ const controller_renomear_arquivo = require("./drive-renomear-arquivo/controller
 
 //controller criar pasta padrão context menu
 const controller_criar_pasta_context = require("./drive-criarPastaContext/controller-criarPasta")
-
-
-//VAULT DRIVE ==================================================
-
-//controller vault acesso inicial verificara
-const controller_vault = require("./AtlasVault/AtlasVault-VerificarAcess/controller-verificar-acesso")
-
-
-//controller para autenticar o painel e entregar SessionToken para vault
-const controller_vault_autenticar = require("./AtlasVault/AtlasVault-VerificarSenha/controller.verificarSenha")
-
-
-//controller para LISTAR O VAULT DRIVE
-const controller_lista_vault = require("./AtlasVault/AtlasVault-listarPasta/controller_listar_pastas")
-
-
-//controller renomear para o VAULT DRIVE (move ou renomeia tudo)
-const controller_renomear_vault = require("./AtlasVault/AtlasVault-renomearGeral/controller-renomear")
-
-
-//controller de DOWLOAD DO VAULT DRIVE
-const controller_download_vault = require("./AtlasVault/AtlasVault-download/controller_download")
-
-
-//controller de UPLOAD DO VAULT DRIVE
-const controller_upload_vault = require("./AtlasVault/AtlasVault-upload/controller.upload")
-
-
-//controller de DELETE do vault drive
-const controller_delete_vault = require("./AtlasVault/AtlasVault-delete/controller.delete")
 
 
 //----------------------------------------------- ROTAS --------------------------------------------------

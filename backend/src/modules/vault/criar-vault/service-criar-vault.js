@@ -3,7 +3,6 @@ const AppError = require("../../../error/AppError")
 const fs = require("fs/promises")
 const path = require("path")
 
-const repo = require("./repo-criar-vault")
 
 
 async function service_criar_vault(id, vaultName, vaultBuffer) {

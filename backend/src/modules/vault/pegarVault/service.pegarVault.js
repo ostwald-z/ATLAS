@@ -3,7 +3,6 @@ const AppError = require("../../../error/AppError")
 const fs = require("fs")
 const path = require("path")
 
-const sql_pegar_vault = require("./repo.pegarVault")
 
 async function service_pegar_vault(vaultName, id_user) {
     

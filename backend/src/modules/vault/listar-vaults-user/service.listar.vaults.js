@@ -1,6 +1,5 @@
 const AppError = require("../../../error/AppError")
 
-const repo = require("./repo.listar.vaults")
 
 const fs = require("fs")
 const path = require("path")
