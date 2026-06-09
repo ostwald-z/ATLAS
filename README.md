@@ -165,8 +165,8 @@ CHAT_ID_TELEGRAM_ADMIN=      # Seu Chat ID pessoal (você, dono do sistema)
 
 ```bash
 # 1. Clone o repositório no seu servidor
-git clone https://github.com/seu-usuario/atlas.git
-cd atlas
+git clone https://github.com/ostwald-z/ATLAS.git
+cd ATLAS
 
 # 2. Configure suas variáveis de ambiente
 cp .env.example .env
